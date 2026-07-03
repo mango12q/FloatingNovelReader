@@ -91,7 +91,7 @@ namespace FloatingNovelReader.Controls {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/FloatingNovelReader;component/controls/overlaycontrolbar.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/FloatingNovelReader;V1.0.0.0;component/controls/overlaycontrolbar.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Controls\OverlayControlBar.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

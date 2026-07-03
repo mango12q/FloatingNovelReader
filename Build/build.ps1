@@ -7,8 +7,8 @@
       - 还原依赖
       - Release 构建
       - 运行单元测试
-      - 发布 portable 单文件（小 EXE，Framework-Dependent，需 .NET 8 桌面运行时）
-      - 发布 standalone 单文件（大 EXE，自包含，开箱即用）
+      - 发布 portable 单文件 EXE（Framework-Dependent，需 .NET 8 桌面运行时）
+      - 打包 zip
 #>
 
 [CmdletBinding()]
@@ -16,20 +16,14 @@ param(
     [switch]$SkipTests,
     [switch]$SkipPublish,
     [string]$Configuration = "Release",
-    [string]$Rid = "win-x64",
-    [switch]$PortableOnly,   # 只发布 portable
-    [switch]$StandaloneOnly  # 只发布 standalone
+    [string]$Rid = "win-x64"
 )
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $ProjectRoot
 
-# 默认两个都发布；若用户只指定一个则只发那个
-$doPortable  = -not $StandaloneOnly
-$doStandalone = -not $PortableOnly
-
-# 重命名输出 EXE 的小工具
+# 重命名输出 EXE
 function Rename-Exe {
     param([string]$Dir, [string]$FromName, [string]$ToName)
     $src = Join-Path $Dir $FromName
@@ -40,7 +34,7 @@ function Rename-Exe {
     }
 }
 
-# 压缩 portable 输出目录
+# 压缩输出目录
 function New-Zip {
     param([string]$SourceDir, [string]$ZipPath)
     if (-not (Test-Path $SourceDir)) { return }
@@ -73,50 +67,29 @@ else {
     Write-Host "`n==> 跳过测试" -ForegroundColor Yellow
 }
 
-# 4. 发布
+# 4. 发布 portable
 if (-not $SkipPublish) {
-    Write-Host "`n==> 发布产物 ($Rid)..." -ForegroundColor Cyan
+    Write-Host "`n==> 发布 portable 单文件 ($Rid)..." -ForegroundColor Cyan
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $publishRoot = Join-Path $ProjectRoot "publish"
+    $portableDir = Join-Path $publishRoot "$Rid-portable"
 
-    if ($doPortable) {
-        # portable：Framework-Dependent 单文件，约 5 MB，需 .NET 8 桌面运行时
-        # 注意：Framework-Dependent 模式不支持 EnableCompressionInSingleFile（会报 NETSDK1176）
-        Write-Host "`n  --- [portable] Framework-Dependent 单文件 ---" -ForegroundColor Yellow
-        $portableDir = Join-Path $publishRoot "$Rid-portable"
-        dotnet publish FloatingNovelReader/FloatingNovelReader.csproj `
-            -c $Configuration -r $Rid `
-            --self-contained false `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
-            -o $portableDir
-        if ($LASTEXITCODE -ne 0) { throw "portable 发布失败" }
-        Rename-Exe -Dir $portableDir -FromName "FloatingNovelReader.exe" -ToName "floating-novel-reader-portable.exe"
-        $portableZip = Join-Path $publishRoot "floating-novel-reader-portable-$Rid-$timestamp.zip"
-        New-Zip -SourceDir $portableDir -ZipPath $portableZip
-    }
+    # portable：Framework-Dependent 单文件，约 4 MB，需 .NET 8 桌面运行时
+    # 注意：Framework-Dependent 模式不支持 EnableCompressionInSingleFile
+    dotnet publish FloatingNovelReader/FloatingNovelReader.csproj `
+        -c $Configuration -r $Rid `
+        --self-contained false `
+        -p:PublishSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -o $portableDir
+    if ($LASTEXITCODE -ne 0) { throw "portable 发布失败" }
 
-    if ($doStandalone) {
-        # standalone：自包含单文件，约 150 MB，无需运行时，开箱即用
-        Write-Host "`n  --- [standalone] 自包含单文件 ---" -ForegroundColor Yellow
-        $standaloneDir = Join-Path $publishRoot "$Rid-standalone"
-        dotnet publish FloatingNovelReader/FloatingNovelReader.csproj `
-            -c $Configuration -r $Rid `
-            --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:EnableCompressionInSingleFile=true `
-            -o $standaloneDir
-        if ($LASTEXITCODE -ne 0) { throw "standalone 发布失败" }
-        Rename-Exe -Dir $standaloneDir -FromName "FloatingNovelReader.exe" -ToName "floating-novel-reader-standalone.exe"
-        # standalone 单 EXE 自身已是无依赖可分发的最终产物，zip 包装方便 GitHub Release
-        $standaloneZip = Join-Path $publishRoot "floating-novel-reader-standalone-$Rid-$timestamp.zip"
-        New-Zip -SourceDir $standaloneDir -ZipPath $standaloneZip
-    }
+    Rename-Exe -Dir $portableDir -FromName "FloatingNovelReader.exe" -ToName "floating-novel-reader-portable.exe"
+
+    $portableZip = Join-Path $publishRoot "floating-novel-reader-portable-$Rid-$timestamp.zip"
+    New-Zip -SourceDir $portableDir -ZipPath $portableZip
 }
 
 Write-Host "`n==> 完成！" -ForegroundColor Green
 Write-Host "    产物在 publish/ 目录下" -ForegroundColor Gray
-if ($doPortable)    { Write-Host "      - $Rid-portable/floating-novel-reader-portable.exe (需 .NET 8 运行时)" -ForegroundColor Gray }
-if ($doStandalone) { Write-Host "      - $Rid-standalone/floating-novel-reader-standalone.exe (开箱即用)" -ForegroundColor Gray }
-
+Write-Host "      - $Rid-portable/floating-novel-reader-portable.exe (需 .NET 8 桌面运行时)" -ForegroundColor Gray

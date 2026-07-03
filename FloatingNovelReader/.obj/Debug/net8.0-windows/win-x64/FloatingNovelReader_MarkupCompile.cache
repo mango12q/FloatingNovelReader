@@ -1,5 +1,5 @@
 ﻿FloatingNovelReader
-
+1.0.0.0
 
 winexe
 C#
@@ -12,7 +12,7 @@ TRACE;DEBUG;NET;NET8_0;NETCOREAPP
 E:\novel2\FloatingNovelReader\App.xaml
 7-1405543433
 
-49875683797
+50532222132
 242-745286096
 Controls\OverlayControlBar.xaml;Resources\Styles.xaml;Views\BookmarkWindow.xaml;Views\BookshelfWindow.xaml;Views\ChapterListWindow.xaml;Views\ReaderWindow.xaml;Views\SettingsWindow.xaml;
 
