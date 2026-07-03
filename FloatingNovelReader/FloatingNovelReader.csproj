@@ -8,14 +8,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FloatingNovelReader</RootNamespace>
     <AssemblyName>FloatingNovelReader</AssemblyName>
+    <Product>浮窗小说阅读器</Product>
+    <Description>一个悬浮在桌面上的小说阅读器：透明、可拖动、可穿透、全局快捷键翻页。</Description>
+    <Company>FloatingNovelReader</Company>
+    <Copyright>Copyright (c) 2026</Copyright>
+    <RepositoryUrl>https://github.com/$(AssemblyName)/$(AssemblyName)</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <NeutralLanguage>zh-CN</NeutralLanguage>
     <ApplicationIcon>Resources\Icons\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <LangVersion>latest</LangVersion>
-    <!-- Framework-Dependent 单文件发布配置 -->
+    <!-- 默认发布配置（可在命令行用 -p: 覆盖） -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- 发布时不生成 .pdb（避免泄露源码结构 + 减小体积） -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
     <!-- 与 Tests 项目隔离 bin/obj 目录，避免互相锁定 -->
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory).obj\</BaseIntermediateOutputPath>

@@ -1,45 +1,114 @@
-# 浮窗小说阅读器 (Floating Novel Reader)
+# 浮窗小说阅读器 Floating Novel Reader
 
-一款 Windows 桌面端**悬浮窗小说阅读器**。打开后是一个无边框、半透明的小窗体，常驻其他窗口之上；可拖动、可调大小、可设为"鼠标穿透"以避免干扰工作。完整支持 TXT 小说导入、自动分章、书签、目录、进度记忆，并提供全局快捷键（无需切换焦点即可翻页/调速/Boss Key 等）。
+<p align="center">
+  <img src="FloatingNovelReader/Resources/Icons/app.ico" width="80" alt="Logo">
+</p>
+
+<p align="center">
+  <b>一个悬浮在桌面上的小说阅读器 · 透明 · 可拖动 · 可穿透 · 全局快捷键</b>
+</p>
+
+<p align="center">
+  <a href="#-下载安装"><img src="https://img.shields.io/badge/下载-Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download"></a>
+  <a href="#-使用说明"><img src="https://img.shields.io/badge/平台-Windows%2010%2F11-blue?style=for-the-badge&logo=windows" alt="Platform"></a>
+  <a href="#-使用说明"><img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-MIT-green?style=for-the-badge" alt="License"></a>
+</p>
 
 ---
 
-## 功能特性
+> 看小说的同时不耽误工作——半透明悬浮窗，鼠标可穿透；支持 TXT 自动分章、书签、目录、全局快捷键翻页。
 
-### 阅读体验
-- 始终置顶 / 半透明 / 无边框悬浮窗
-- 鼠标穿透（点击直接落到下层窗口，悬浮窗"隐身"）
-- 鼠标悬停自动出现控制栏（≡ 目录 / ⚙ 设置 / 🔖 书签 / 🔖+ 添加书签 / ◁ 上一页 / ◉ 置顶 / ⨯ 关闭）
-- 拖动标题栏任意位置即可移动窗口；四边/四角可调整大小（Win32 + WindowChrome）
-- 字体、字号、背景色、行间距、透明度均可调
-- 自动阅读（可调速、加速/减速快捷键）
-- 阅读进度自动保存，下次打开自动恢复
+---
 
-### 内容与导航
-- TXT 导入（**自动检测编码** GBK / UTF-8 / UTF-16 LE/BE / Big5 …）
-- 自动**卷章解析**（支持「第一卷 / 卷一 / Chapter 1 / 1、」等多种写法）
-- 章节目录窗口（按卷/章树形展示，点击跳转）
-- 书签功能（添加 / 列表 / 跳转）
+## ✨ 功能特性
 
-### 全局快捷键
-- 所有快捷键**可在「设置 → 快捷键」中自定义**
-- **单键即生效**（如 N / ↓ / F1），不强制要求组合键
-- **录制模式**：点击输入框即可按下新键，Esc 取消，按 Backspace/Delete 清空
-- **右键清空**：在输入框上右键即可把该快捷键清空（"禁用此快捷键"）
+### 📖 阅读体验
+- **悬浮窗**：无边框 / 始终置顶 / 半透明
+- **鼠标穿透**：按 `F3` 切换——悬浮窗对鼠标"隐身"，点击直接落到下层窗口
+- **拖动 & 调整大小**：四边/四角拉伸，任意位置按住即可移动
+- **自动阅读**：可调速、加速/减速快捷键
+
+### 📚 内容 & 导航
+- **TXT 导入**：自动检测编码（GBK / UTF-8 / UTF-16 / Big5 …）
+- **自动分章**：识别「第 N 章 / 第一卷 / Chapter 1 / 1、」等多种写法
+- **章节目录**：按 `F9` 打开，按卷/章树形展示
+- **书签**：按 `F10` 添加 / `F11` 打开书签列表 / 列表点击跳转
+- **进度记忆**：阅读位置自动保存，下次打开自动恢复
+
+### ⌨️ 全局快捷键
+- **单键即生效**（N / ↓ / F1 都行），不强制要求组合键
+- **可自定义**：在「设置 → 快捷键」里点输入框就能录新键
+- **录制模式**：单按 Esc 取消 / Backspace 清空 / **右键清空**（禁用该快捷键）
 - **保存即时生效**：保存后全局钩子立即重载
-- **与录制冲突隔离**：录制期间全局钩子暂停，避免"刚按的 N 立刻触发下一页"
-- 内置默认快捷键（见下表）
 
-### 数据与系统集成
-- 系统托盘（最小化到托盘，关闭即最小化）
-- 本地 SQLite 存储（库 / 书签 / 进度）
-- 完整的"从书架移除"流程：可选择仅删除记录，或同时删除源 TXT 文件；外键级联清理 Books → Volumes/Chapters/ReadingProgress/Bookmarks
-- Boss Key 一键隐藏窗口
-- 边缘吸附
+### 🗂️ 数据与系统集成
+- **系统托盘**：最小化到托盘
+- **SQLite 存储**：本地库 / 书签 / 进度
+- **彻底删除**：从书架移除时，可选同时删除源文件；外键级联清理数据库
+- **Boss Key**：`F8` 一键隐藏窗口
+- **边缘吸附**：拖到屏幕边缘自动贴边
 
 ---
 
-## 技术栈
+## 📥 下载安装
+
+前往 [**Releases 页面**](../../releases) 下载最新版本，提供两个版本：
+
+| 版本 | 体积 | 依赖 | 适用场景 |
+|------|------|------|----------|
+| **`floating-novel-reader-portable.exe`** | 小（约 5 MB） | 需安装 .NET 8 桌面运行时 | 已装 .NET 8 的开发机 / 喜欢小文件分发 |
+| **`floating-novel-reader-standalone.exe`** | 大（约 150 MB） | 无需任何依赖 | **推荐**·直接双击运行，最省心 |
+
+### 选择指南
+
+- 🟢 **绝大多数用户** → 下载 `standalone` 版本，双击就能用
+- 🟡 已经装过 .NET 8 / 想节省带宽 → 下载 `portable` 版本
+- 🔴 不确定 → 直接下 `standalone`，不会出错
+
+### 安装 .NET 8 运行时（仅 portable 需要）
+
+如果选择 `portable` 但没装 .NET 8，程序会启动失败并提示下载。访问：
+👉 https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0 → 选择「桌面运行时」 → 下载安装 → 重启程序。
+
+---
+
+## 🚀 快速开始
+
+1. 下载并运行上面的 EXE
+2. 主窗口「书架」→ 点击「导入」按钮 → 选一个 TXT 文件
+3. 等待进度条走完（首次导入约几秒，1MB 以内瞬间完成）
+4. 双击书籍卡片 → 阅读窗口弹出
+5. 按 `F3` 切换鼠标穿透 → 看小说不挡工作
+
+### 默认快捷键速查
+
+| 快捷键 | 功能 |
+|--------|------|
+| `→` / `Space` | 下一页 |
+| `←` / `Backspace` | 上一页 |
+| `PageDown` / `PageUp` | 下一章 / 上一章 |
+| `F3` | 切换鼠标穿透 |
+| `F4` | 切换窗口置顶 |
+| `F5` | 开始 / 暂停自动阅读 |
+| `F6` / `F7` | 自动阅读加速 / 减速 |
+| `F8` | Boss Key（一键隐藏） |
+| `F9` | 章节目录 |
+| `F10` | 添加书签 |
+| `F11` | 书签列表 |
+| `Ctrl+↑` / `Ctrl+↓` | 增加 / 降低透明度 |
+
+> 所有快捷键都可在 **设置 → 快捷键** 中改键或清空。
+
+---
+
+## 🖼️ 界面预览
+
+> 截图待补充
+
+---
+
+## 🛠️ 技术栈
 
 | 类别 | 选型 |
 |------|------|
@@ -47,202 +116,89 @@
 | MVVM | CommunityToolkit.Mvvm |
 | DI | Microsoft.Extensions.DependencyInjection |
 | 全局钩子 | MouseKeyHook |
-| 数据库 | Microsoft.Data.Sqlite + EF Core（手动 SQL） |
+| 数据库 | SQLite (Microsoft.Data.Sqlite) |
 | 编码检测 | Ude.NetStandard |
 | 日志 | Serilog（按天切割，文件输出） |
 | 单元测试 | xUnit |
 
 ---
 
-## 目录结构
+## 📁 项目结构
 
 ```
-novel2/
-├── README.md                              # 本文件
-├── LICENSE                                # MIT
-├── FloatingNovelReader.sln                # 解决方案
-├── .editorconfig                          # 跨编辑器风格配置
-├── .gitignore                             # 忽略 .bin/ .obj/ obj/ bin/ Logs/
-├── .vscode/                               # VSCode 配置（推荐扩展/任务/调试）
-│   ├── extensions.json
-│   ├── launch.json
-│   ├── settings.json
-│   └── tasks.json
+.
+├── README.md
+├── LICENSE
+├── .gitignore
+├── .editorconfig
+├── .vscode/
 ├── Build/
-│   └── build.ps1                          # 一键发布脚本（PowerShell）
-├── FloatingNovelReader/                   # 主项目
-│   ├── App.xaml(.cs)                      # 应用入口 + DI 容器 + 事件总线接线
-│   ├── app.manifest                       # UAC / DPI 清单
-│   ├── AssemblyInfo.cs
-│   ├── Core/                              # 基础设施
-│   │   ├── EventBus.cs                    # 全局事件总线
-│   │   ├── HotkeyManager.cs               # 全局热键注册 + 录制态隔离
-│   │   ├── KeyGestureLite.cs              # 单键 / 组合键的统一描述
-│   │   └── SettingsService.cs             # settings.json 读写 + SettingsChanged 事件
-│   ├── Models/                            # 数据模型
-│   │   ├── Book.cs / Volume.cs / Chapter.cs
-│   │   ├── Bookmark.cs / ReadingProgress.cs
-│   │   ├── HotkeyConfig.cs                # 快捷键绑定（默认值 + 索引器）
-│   │   └── ChapterReference.cs
-│   ├── Services/                          # 业务服务
-│   │   ├── DatabaseService.cs             # SQLite（含 PRAGMA foreign_keys=ON）
-│   │   ├── BookImportService.cs           # TXT 导入（编码检测 + 卷章解析）
-│   │   ├── BookshelfService.cs            # 书架增删查
-│   │   ├── PaginationService.cs           # 分页引擎
-│   │   ├── ReadingSessionService.cs       # 阅读会话/进度
-│   │   └── BookmarkService.cs             # 书签增删查
-│   ├── ViewModels/                        # MVVM ViewModel
-│   │   ├── MainViewModel.cs
-│   │   ├── BookshelfViewModel.cs          # 含"是否删除源文件"三选一对话框
-│   │   ├── ReaderViewModel.cs             # 含 JumpToChapter / RefreshPageAfterJump
-│   │   ├── ChapterListViewModel.cs        # 含 Load(book) 加载完整卷章树
-│   │   ├── BookmarkViewModel.cs
-│   │   ├── SettingsViewModel.cs
-│   │   └── ImportProgressViewModel.cs
-│   ├── Views/                             # XAML 视图窗口
-│   │   ├── MainWindow.xaml(.cs)           # 书架主窗口
-│   │   ├── ReaderWindow.xaml(.cs)         # 阅读悬浮窗（拖动 + Resize + 穿透）
-│   │   ├── ChapterListWindow.xaml(.cs)    # 章节目录弹窗
-│   │   ├── BookmarkWindow.xaml(.cs)       # 书签列表弹窗
-│   │   ├── SettingsWindow.xaml(.cs)       # 设置（外观 / 阅读 / 快捷键）
-│   │   └── ImportProgressWindow.xaml(.cs)
-│   ├── Controls/                          # 自定义控件
-│   │   └── HotkeyTextBox.cs               # 快捷键录制控件（单键 / 组合键 / 右键清空）
-│   ├── Helpers/                           # 辅助工具
-│   │   ├── ChapterParser.cs               # 卷章解析（中文 / 英文 / 数字列表）
-│   │   ├── TextEncoderDetector.cs         # 编码探测
-│   │   ├── Win32Helper.cs                 # 鼠标穿透 / 窗口置顶 / 屏幕坐标
-│   │   └── ...
-│   ├── Converters/                        # WPF 值转换器
-│   ├── Properties/                        # 程序集元数据
+│   └── build.ps1
+├── FloatingNovelReader/                  # 主项目（WPF）
+│   ├── App.xaml(.cs)
+│   ├── app.manifest
+│   ├── Core/                             # 基础设施（事件总线 / 全局热键 / 配置）
+│   ├── Models/                           # 数据模型
+│   ├── Services/                         # 业务服务（数据库 / 导入 / 分页 / 书签）
+│   ├── ViewModels/                       # MVVM ViewModel
+│   ├── Views/                            # 窗口 XAML
+│   ├── Controls/                         # 自定义控件（HotkeyTextBox 等）
+│   ├── Helpers/                          # 辅助工具（卷章解析 / 编码探测 / Win32 封装）
+│   ├── Converters/                       # WPF 值转换器
+│   ├── Properties/
 │   └── Resources/
-│       └── Icons/                         # 应用图标 / 托盘图标
-└── FloatingNovelReader.Tests/             # xUnit 单元测试
-    ├── Core/KeyGestureLiteTests.cs        # 36 个：单键 / 组合键 / ToString / TryParse
-    ├── Helpers/                           # 文本处理、Win32 助手测试
-    ├── Services/
-    │   ├── ChapterParserTests.cs          # 卷章解析（含「第N章 xxx」标题拼接）
-    │   ├── BookImportServiceTests.cs      # TXT 导入完整流程
-    │   └── BookshelfServiceTests.cs       # 移除 = 完整级联删除
-    └── ...
+│       ├── Icons/
+│       └── Styles.xaml
+└── FloatingNovelReader.Tests/            # 单元测试
+    ├── Core/
+    ├── Helpers/
+    └── Services/
 ```
-
-> **构建产物隔离**：`bin/obj` 已通过 MSBuild 的 `BaseIntermediateOutputPath` 重定向到 `.bin/` `.obj/`，根目录的 `obj/` 是 NuGet restore 的中间文件，正常被 `.gitignore` 忽略。
 
 ---
 
-## 在 Windows 上构建
+## 🔧 从源码构建
 
-### 1. 准备环境
+### 准备
 
-- Windows 10/11（64 位）
-- 安装 [.NET 8 SDK](https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0)（勾选「.NET 桌面运行时」）
-- 工具二选一：
-  - **Visual Studio Code**（轻量，需要安装扩展）
-  - **Visual Studio 2022**（带「.NET 桌面开发」工作负载，可视化 XAML 设计器）
+- Windows 10/11
+- [.NET 8 SDK](https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0)
+- Visual Studio 2022 或 VSCode + C# Dev Kit 扩展
 
-> ⚠️ WPF 是 Windows 专属框架，本项目**无法在 macOS / Linux 上运行**。
-
-### 2. 使用 VSCode 打开
-
-项目已预置完整的 VSCode 工程配置（`.vscode/`、`.editorconfig`），按下面三步即可上手。
-
-#### 2.1 安装必备扩展
-
-打开项目后 VSCode 会自动弹出推荐扩展安装提示：
-
-- **C# Dev Kit**（`ms-dotnettools.csdevkit`）— 核心支持
-- **C#**（`ms-dotnettools.csharp`）— 语法高亮、补全
-- **IntelliCode**（`visualstudioexptteam.vscodeintellicode`）— 智能补全
-- **C# Extensions**（`kreativ-software.csharpextensions`）— 一键新建类/接口
-- **VSCode Solution Explorer**（`fernandoescolar.vscode-solution-explorer`）— 资源管理器式解决方案视图
-
-一行装完：
+### 命令行
 
 ```powershell
-code --install-extension ms-dotnettools.csdevkit `
-     --install-extension ms-dotnettools.csharp `
-     --install-extension visualstudioexptteam.vscodeintellicode `
-     --install-extension kreativ-software.csharpextensions `
-     --install-extension fernandoescolar.vscode-solution-explorer
-```
+# 克隆
+git clone https://github.com/你的用户名/floating-novel-reader.git
+cd floating-novel-reader
 
-> 💡 C# Dev Kit 第一次打开时可能要求登录 Microsoft 账户，可点「Later」跳过，不影响编译。
-
-#### 2.2 还原依赖
-
-```powershell
+# 还原 + 编译 + 测试
 dotnet restore
-```
-
-或按 `Ctrl+Shift+P` → `Tasks: Run Task` → `restore`。
-
-#### 2.3 编译、运行、调试
-
-| 操作 | 方法 |
-|------|------|
-| 编译（Debug） | `Ctrl+Shift+B`，或 `dotnet build -c Debug` |
-| 编译（Release） | 任务面板 → `build-release` |
-| **运行** | **F5** 启动调试（自动 build + 启动 `FloatingNovelReader.exe`） |
-| 启动而不调试 | `Ctrl+F5` |
-| 单元测试 | 任务面板 → `test`，或 `dotnet test` |
-| 断点调试 | 行号左侧点红点 → F5 |
-
-> WPF 没有 XAML 热重载。改完 XAML → `Ctrl+Shift+B` 重编译 → F5 启动。
-
-#### 2.4 常见问题
-
-**F5 报错「无法创建目录 obj\Debug\net8.0-windows」「Access to the path ... is denied」**
-
-MSBuild 文件锁冲突。**解决步骤**：
-
-1. 任务面板 → 运行 `clean-force`（强删 `bin/obj/.bin/.obj`）
-2. `Ctrl+Shift+P` → `Developer: Reload Window` 重启 VSCode
-3. 再按 F5
-
-**NuGet 还原失败**（网络问题）：
-
-```powershell
-dotnet nuget add source https://nuget.cdn.azure.cn/v3/index.json -n "Azure 中国"
-```
-
-#### 2.5 VSCode 快捷速查
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+Shift+P` | 命令面板 |
-| `Ctrl+Shift+B` | 运行编译任务 |
-| `F5` | 启动调试 |
-| `Ctrl+F5` | 启动不调试 |
-| `Ctrl+Shift+F` | 全局搜索 |
-| `F12` | 跳转到定义 |
-| `Alt+F12` | 查看定义（悬浮） |
-| `Shift+F12` | 查找所有引用 |
-
-### 3. 直接用命令行
-
-```powershell
-# 调试构建
-dotnet build -c Debug
-
-# Release 构建
 dotnet build -c Release
-
-# 运行测试
 dotnet test
 ```
 
-### 4. 发布单文件 EXE
+### 发布
 
 ```powershell
-# Framework-Dependent（推荐：体积小，需用户机装 .NET 8 桌面运行时）
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/win-x64-fd
+# 1. 小 EXE（portable，Framework-Dependent 单文件）
+dotnet publish FloatingNovelReader -c Release -r win-x64 `
+    --self-contained false `
+    -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -o publish/portable
 
-# 自包含（不依赖运行时：体积大，可直接双击运行）
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish/win-x64-sc
+# 2. 大 EXE（standalone，Self-Contained 单文件，无需运行时）
+dotnet publish FloatingNovelReader -c Release -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=true `
+    -p:EnableCompressionInSingleFile=true `
+    -o publish/standalone
+
+# 产物在 publish/portable/ 和 publish/standalone/ 下
 ```
 
-### 5. 一键发布
+### 一键发布
 
 ```powershell
 .\Build\build.ps1
@@ -255,50 +211,10 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 | `-Configuration Release` | 默认 Release |
 | `-Rid win-x64` | 目标 RID |
 | `-SkipTests` | 跳过单元测试 |
-| `-SkipPublish` | 跳过 publish 阶段 |
 
 ---
 
-## 首次运行
-
-1. 双击 `FloatingNovelReader.exe`
-2. 如果提示「.NET 8 运行时未安装」，按引导前往微软官网下载
-3. 打开后默认进入「书架」窗口
-4. 点击「导入」选 TXT 文件 → 自动检测编码、解析卷章、入库
-5. 双击书籍卡片开始阅读
-6. 阅读窗口按 F3 切换鼠标穿透 → 看书不干扰工作
-
----
-
-## 默认快捷键
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Space` / `→` | 下一页 |
-| `Back`（←）/ `Backspace` | 上一页 |
-| `PageDown` | 下一章 |
-| `PageUp` | 上一章 |
-| `F3` | 切换鼠标穿透 |
-| `F4` | 切换窗口置顶 |
-| `F5` | 切换自动阅读 |
-| `F6` | 加快自动阅读 |
-| `F7` | 减慢自动阅读 |
-| `F8` | 隐藏窗口（Boss Key） |
-| `F9` | 打开章节目录 |
-| `F10` | 添加书签 |
-| `F11` | 打开书签列表 |
-| `Ctrl+↑` / `+` | 增加透明度 |
-| `Ctrl+↓` / `-` | 降低透明度 |
-
-**所有快捷键都可在「设置 → 快捷键」中自定义：**
-- 单击输入框 → 按新键（**单键即生效**，如 N、↓、F1）
-- 按 Esc 取消录制，恢复原值
-- 按 Backspace/Delete 清空当前快捷键
-- **右键输入框** 清空并禁用该快捷键
-
----
-
-## 配置文件位置
+## 🗃️ 配置文件位置
 
 | 文件 | 路径 |
 |------|------|
@@ -308,43 +224,30 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ---
 
-## 项目状态
+## 🧪 单元测试
 
-- ✅ Phase 1：核心骨架（窗口、Win32 辅助、拖拽缩放、置顶、穿透、透明度、边缘吸附）
-- ✅ Phase 2：文本引擎（编码检测、卷章解析、SQLite 导入、分页引擎）
-- ✅ Phase 3：阅读功能（ReaderViewModel、悬停控制栏、全局快捷键、防抖、进度保存/恢复）
-- ✅ Phase 4：书架、书签、章节目录
-- ✅ Phase 5：自动阅读、设置、字体、背景、行间距
-- ✅ Phase 6：托盘、窗口记忆、Framework-Dependent 单文件发布
-- ✅ Phase 7：自定义快捷键（单键 / 录制 / 右键清空 / 全局钩子隔离）
-- ✅ Phase 8：彻底删除（外键级联 + 可选删除源文件 + 关闭打开的 ReaderWindow）
-- ✅ 单元测试覆盖：KeyGestureLite、ChapterParser、BookImport、Bookshelf
-
-### 测试覆盖
-
-```
-$ dotnet test
-Passed: 64
-Failed: 0
+```powershell
+dotnet test
 ```
 
-主要覆盖：
-- `KeyGestureLite`（单键 / 组合键解析与序列化、36 用例）
-- `ChapterParser`（卷章解析、第 N 章 + 章节名拼接、6 用例）
-- `BookImportService`（TXT 导入完整流程、含编码检测）
-- `BookshelfService`（移除 = 完整级联删除，5 用例）
-- `Win32Helper`（窗口置顶、屏幕坐标等 Win32 封装）
+覆盖范围：
+
+- `KeyGestureLite` —— 单键 / 组合键解析与序列化
+- `ChapterParser` —— 卷章解析（第 N 章 + 章节名拼接）
+- `BookImportService` —— TXT 导入完整流程（含编码检测）
+- `BookshelfService` —— 移除 = 完整级联删除
 
 ---
 
-## 已知限制
+## 📜 许可证
 
-- 仅支持 TXT 文件（EPUB 作为后续扩展）
-- Windows 专属（依赖 Win32 API 与 WPF）
-- 当前为单实例模式（再次启动会被拒绝并提示）
+[MIT](LICENSE)
 
 ---
 
-## License
+## 🙏 致谢
 
-MIT
+- [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)
+- [MouseKeyHook](https://github.com/gmamaladze/globalmousekeyhook)
+- [Ude.NetStandard](https://github.com/errepi/ude)
+- [Serilog](https://serilog.net/)

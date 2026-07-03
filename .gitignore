@@ -1,20 +1,42 @@
+## .NET 构建产物
 bin/
 obj/
-.bin/
-.obj/
-publish/
 *.user
+*.suo
+
+## 平台特定输出
+publish/
+*.exe
+*.dll
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+
+## IDE
 .vs/
 .idea/
-*.suo
-*.log
-
-# VSCode (保留 .vscode 文件夹，过滤部分缓存)
 .vscode/settings.json.bak
 
-# 用户日志/数据库
+## 日志与运行时数据
+*.log
+logs/
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
-logs/
+
+## OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+## 临时/构建缓存（项目自定）
+.cache/
+
+## 不要提交的内容（必须保留）
+!README.md
+!LICENSE
+!.gitignore
+!.editorconfig
+!.vscode/
+!.workbuddy/   # 系统工作记忆（重要：包含项目规则与用户偏好）
