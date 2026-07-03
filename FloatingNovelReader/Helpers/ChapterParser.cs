@@ -114,7 +114,8 @@ public sealed class ChapterParser
     /// <param name="text">全文内容（已解码）</param>
     /// <param name="filePath">原文件路径</param>
     /// <param name="fileSize">文件大小（字节）</param>
-    public Book Parse(string text, string filePath, long fileSize)
+    /// <param name="encoding">文件实际编码，用于正确计算字节偏移量</param>
+    public Book Parse(string text, string filePath, long fileSize, Encoding? encoding = null)
     {
         var book = new Book
         {
@@ -134,10 +135,11 @@ public sealed class ChapterParser
         var lines = text.Split('\n');
         var linePositions = new long[lines.Length + 1];
         long pos = 0;
+        var byteEnc = encoding ?? Encoding.UTF8;
         for (int i = 0; i < lines.Length; i++)
         {
             linePositions[i] = pos;
-            pos += Encoding.UTF8.GetByteCount(lines[i].AsSpan(0, lines[i].Length > 0 ? lines[i].Length : 0)) + 1; // +1 for \n
+            pos += byteEnc.GetByteCount(lines[i].AsSpan(0, lines[i].Length > 0 ? lines[i].Length : 0)) + 1; // +1 for \n
         }
         linePositions[lines.Length] = pos;
 

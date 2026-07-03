@@ -18,6 +18,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public ObservableCollection<string> FontFamilies { get; } = new();
     public Array BackgroundPresets { get; } = Enum.GetValues<BackgroundPreset>();
+    public Array FontColorPresets { get; } = Enum.GetValues<FontColorPreset>();
     public Array StartupOptions { get; } = Enum.GetValues<StartupBehavior>();
 
     public SettingsViewModel(
@@ -31,8 +32,23 @@ public sealed partial class SettingsViewModel : ObservableObject
         _current = settings.Current;
         _autoReadIntervalSec = Current.AutoReadIntervalSec;
 
+        // 只保留指定的字体族：黑体、宋体、楷体
+        var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "SimHei", "黑体", "MS黑体",
+            "SimSun", "宋体",
+            "KaiTi", "楷体"
+        };
         foreach (var f in _fontHelper.GetChineseFontFamilies())
-            FontFamilies.Add(f);
+        {
+            if (allowedFonts.Contains(f) || allowedFonts.Any(a => f.Contains(a, StringComparison.OrdinalIgnoreCase)))
+                FontFamilies.Add(f);
+        }
+        if (FontFamilies.Count == 0)
+        {
+            foreach (var f in _fontHelper.GetChineseFontFamilies())
+                FontFamilies.Add(f);
+        }
     }
 
     [RelayCommand]

@@ -37,9 +37,9 @@ public sealed class PaginationService
         double areaWidth,
         double areaHeight)
     {
-        // 用文本内容哈希替代纯长度判断，防止不同文本长度相同导致缓存误命中
-        var textHash = (uint)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(chapterText);
-        var key = $"{fontFamily}|{fontSize}|{lineHeight}|{areaWidth}|{areaHeight}|{textHash:X}";
+        // 用文本内容哈希 + 参数组合作为缓存键，防止不同文本长度相同时缓存误命中
+        var contentHash = System.HashCode.Combine(chapterText);
+        var key = $"{fontFamily}|{fontSize:F2}|{lineHeight:F2}|{areaWidth:F2}|{areaHeight:F2}|{contentHash:X}";
         lock (_lock)
         {
             if (_cacheKey == key && _cache.TryGetValue(chapterText, out var cached))

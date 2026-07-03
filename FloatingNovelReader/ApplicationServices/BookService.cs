@@ -3,9 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FloatingNovelReader.Helpers;
 using FloatingNovelReader.Infrastructure;
 using FloatingNovelReader.Infrastructure.Repositories;
 using FloatingNovelReader.Models;
+using FloatingNovelReader.Services;
 using Serilog;
 
 namespace FloatingNovelReader.ApplicationServices;
@@ -19,16 +21,20 @@ public sealed class BookService : IBookService
     private readonly IBookRepository _books;
     private readonly IChapterRepository _chapters;
     private readonly IReadingProgressRepository _progress;
+    private readonly BookImportService _importService;
+    private readonly ChapterParser _parser;
 
     // 缓存（书架列表）
     private List<Book>? _cachedBooks;
 
-    public BookService(IDbConnectionFactory factory, IBookRepository books, IChapterRepository chapters, IReadingProgressRepository progress)
+    public BookService(IDbConnectionFactory factory, IBookRepository books, IChapterRepository chapters, IReadingProgressRepository progress, BookImportService importService, ChapterParser parser)
     {
         _factory = factory;
         _books = books;
         _chapters = chapters;
         _progress = progress;
+        _importService = importService;
+        _parser = parser;
     }
 
     public Task<IReadOnlyList<Book>> GetBookshelfAsync(string? search, string orderBy, CancellationToken ct = default)
@@ -88,13 +94,24 @@ public sealed class BookService : IBookService
         return new BookDetail(book, volumes, allChapters);
     }
 
-    public Task<BookImportResult> ImportAsync(string filePath, CancellationToken ct = default)
+    public async Task<BookImportResult> ImportAsync(string filePath, CancellationToken ct = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException("源文件不存在", filePath);
 
-        // 占位：后续由 BookImportPipeline（结合 ChapterParser + BookRepository）完成
-        throw new NotImplementedException("BookService.ImportAsync 待后续迭代接入 BookImportPipeline");
+        ct.ThrowIfCancellationRequested();
+
+        // 委托 BookImportService 完成编码检测、卷章解析和入库
+        var book = await _importService.ImportAsync(filePath).ConfigureAwait(false);
+
+        // 组装导入结果
+        return new BookImportResult
+        {
+            Book = book,
+            DetectedEncoding = book.Encoding ?? "unknown",
+            VolumeCount = book.TotalVolumes,
+            ChapterCount = book.TotalChapters,
+        };
     }
 
     public async Task RemoveAsync(int bookId, bool deleteSourceFile, CancellationToken ct = default)
