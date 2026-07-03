@@ -199,4 +199,84 @@ public class ChapterParserTests
         Assert.Contains(firstVolume.Chapters, c => c.Title == "第一章 开端");
         Assert.Contains(firstVolume.Chapters, c => c.Title == "第二章 发展");
     }
+
+    // ---- 章节写法覆盖增强：回 / 话 / 部 / 特殊标题 ----
+
+    [Fact]
+    public void Parse_HuiChapter_Recognized()
+    {
+        // 古典章回体：西游记 / 红楼梦 / 三国演义全是「第N回」
+        var text = "第一回 灵根育孕源流出\n内容A\n第二回 悟彻菩提真如\n内容B\n第一百回 径回东土\n内容C\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        var flat = book.FlatChapters().ToList();
+        Assert.Equal(3, flat.Count);
+        Assert.Equal("第一回 灵根育孕源流出", flat[0].Title);
+        Assert.Equal(1, flat[0].DisplayNumber);
+        Assert.Equal(100, flat[2].DisplayNumber);
+    }
+
+    [Fact]
+    public void Parse_HuiHe_InBody_NotChapter()
+    {
+        // 正文行首出现「第三回合」不能被误切成一章
+        var text = "第一章 比武\n第三回合的较量开始了，双方僵持不下。\n第二章 结局\n内容\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        var flat = book.FlatChapters().ToList();
+        Assert.Equal(2, flat.Count);
+    }
+
+    [Fact]
+    public void Parse_HuaChapter_Recognized()
+    {
+        // 日系轻小说常用「第N话」
+        var text = "第1话 相遇\nA\n第2话 别离\nB\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        var flat = book.FlatChapters().ToList();
+        Assert.Equal(2, flat.Count);
+        Assert.Equal(2, flat[1].DisplayNumber);
+    }
+
+    [Fact]
+    public void Parse_BuVolume_Recognized()
+    {
+        // 「第N部」是卷级结构
+        var text = "第一部 觉醒\n第一章 A\n内容\n第二部 崛起\n第二章 B\n内容\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        Assert.True(book.TotalVolumes >= 2);
+        Assert.Equal(2, book.FlatChapters().Count(c => c.Title.StartsWith("第")
+            && (c.Title.Contains("章"))));
+    }
+
+    [Fact]
+    public void Parse_BuFen_InBody_NotVolume()
+    {
+        // 正文行首「第一部分」不能被误判成新卷
+        var text = "第一章 说明\n第一部分内容如下，先做一个总体介绍。\n第二章 展开\n内容\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        Assert.Equal(1, book.TotalVolumes);
+        Assert.Equal(2, book.TotalChapters);
+    }
+
+    [Fact]
+    public void Parse_SpecialHeaders_Recognized()
+    {
+        // 楔子 / 番外 / 尾声 等独立标题应成章
+        var text = "楔子\n多年以前的一个雨夜。\n第一章 开始\n内容A\n番外一 重逢\n内容B\n尾声\n内容C\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        var flat = book.FlatChapters().ToList();
+        Assert.Equal(4, flat.Count);
+        Assert.Equal("楔子", flat[0].Title);
+        Assert.Equal("番外一 重逢", flat[2].Title);
+        Assert.Equal("尾声", flat[3].Title);
+    }
+
+    [Fact]
+    public void Parse_SpecialWord_InBody_NotHeader()
+    {
+        // 正文行首出现特殊词但后接普通文字，不能误切
+        var text = "第一章 手法\n楔子是章回小说的常见结构，很多作者都会用。\n番外故事以后再讲。\n第二章 继续\n内容\n";
+        var book = _parser.Parse(text, "test.txt", Encoding.UTF8.GetByteCount(text));
+        var flat = book.FlatChapters().ToList();
+        Assert.Equal(2, flat.Count);
+    }
 }

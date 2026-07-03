@@ -48,8 +48,9 @@ public sealed class BookImportService
         // 2. 解码
         var text = _detector.DecodeFile(filePath, encoding);
 
-        // 3. 卷章解析
-        var book = _parser.Parse(text, filePath, fi.Length, encoding);
+        // 3. 卷章解析（BOM 已被解码剥掉，字节偏移要从 BOM 之后算起）
+        var bomLength = _detector.GetPreambleLength(filePath, encoding);
+        var book = _parser.Parse(text, filePath, fi.Length, encoding, bomLength);
         book.Encoding = encoding.WebName ?? encoding.EncodingName;
 
         // 4. 入库

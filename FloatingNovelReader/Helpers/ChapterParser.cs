@@ -16,15 +16,21 @@ namespace FloatingNovelReader.Helpers;
 /// </summary>
 public sealed class ChapterParser
 {
-    // 中文章节：第[一二三四五六七八九十百千万零〇两]+章 / 节
+    // 中文章节：第[一二三四五六七八九十百千万零〇两]+章 / 节 / 回 / 话
+    // 「回(?!合)」防止正文行首的「第三回合」被误切成一章
     private static readonly Regex ReChineseChapter = new(
-        @"^\s*第([零〇一二三四五六七八九十百千万两]+|\d+)\s*(章|节)\s*(.*)$",
+        @"^\s*第([零〇一二三四五六七八九十百千万两]+|\d+)\s*(章|节|回(?!合)|话)\s*(.*)$",
         RegexOptions.Compiled | RegexOptions.Multiline);
 
-    // 中文卷：第[一..]卷
+    // 中文卷：第[一..]卷 / 部；「部(?!分)」防止「第一部分…」被误判成新卷
     private static readonly Regex ReChineseVolume = new(
-        @"^\s*第([零〇一二三四五六七八九十百千万两]+|\d+)\s*卷\s*(.*)$",
+        @"^\s*第([零〇一二三四五六七八九十百千万两]+|\d+)\s*(?:卷|部(?!分))\s*(.*)$",
         RegexOptions.Compiled | RegexOptions.Multiline);
+
+    // 特殊章节标题：楔子 / 序章 / 番外 / 尾声 / 后记 等（独立成行，可带序号或副标题）
+    private static readonly Regex ReSpecialChapter = new(
+        @"^\s*(序章|序言|自序|引子|楔子|间章|番外|外传|尾声|终章|后记|大结局)(.*)$",
+        RegexOptions.Compiled);
 
     // 英文 Chapter / CHAPTER（带或不带数字）
     private static readonly Regex ReEnglishChapter = new(
@@ -115,7 +121,8 @@ public sealed class ChapterParser
     /// <param name="filePath">原文件路径</param>
     /// <param name="fileSize">文件大小（字节）</param>
     /// <param name="encoding">文件实际编码，用于正确计算字节偏移量</param>
-    public Book Parse(string text, string filePath, long fileSize, Encoding? encoding = null)
+    /// <param name="byteOffset">正文起始的字节偏移（文件头 BOM 的字节数，解码后的 text 中已被剥掉）</param>
+    public Book Parse(string text, string filePath, long fileSize, Encoding? encoding = null, long byteOffset = 0)
     {
         var book = new Book
         {
@@ -131,15 +138,19 @@ public sealed class ChapterParser
             book.Author = authorMatch.Groups[1].Value.Trim();
         }
 
-        // 拆分行为 line list
+        // 拆分行为 line list。
+        // 偏移按「实际编码」计算：换行符在 UTF-16 下是 2 字节，硬编码 +1 会让
+        // 每行偏移累积错位，阅读时按偏移回读的章节内容全是乱码。
         var lines = text.Split('\n');
         var linePositions = new long[lines.Length + 1];
-        long pos = 0;
         var byteEnc = encoding ?? Encoding.UTF8;
+        int newlineBytes = byteEnc.GetByteCount("\n");
+        long pos = byteOffset;
         for (int i = 0; i < lines.Length; i++)
         {
             linePositions[i] = pos;
-            pos += byteEnc.GetByteCount(lines[i].AsSpan(0, lines[i].Length > 0 ? lines[i].Length : 0)) + 1; // +1 for \n
+            pos += byteEnc.GetByteCount(lines[i]);
+            if (i < lines.Length - 1) pos += newlineBytes; // 行间必有 \n；最后一行后不一定有
         }
         linePositions[lines.Length] = pos;
 
@@ -177,13 +188,13 @@ public sealed class ChapterParser
                 ChapterNumber = 0,
                 DisplayNumber = 1,
                 Title = book.Title,
-                StartPosition = 0,
+                StartPosition = byteOffset,
                 EndPosition = fileSize,
                 StartLineNumber = 0,
                 LineCount = lines.Length,
             };
             currentVolume.Chapters.Add(singleChapter);
-            currentVolume.StartPosition = 0;
+            currentVolume.StartPosition = byteOffset;
             currentVolume.EndPosition = fileSize;
             book.Volumes = volumes;
             book.TotalVolumes = 1;
@@ -202,14 +213,14 @@ public sealed class ChapterParser
                 ChapterNumber = chapterNumberCounter++,
                 DisplayNumber = 0,
                 Title = preTitle,
-                StartPosition = 0,
+                StartPosition = byteOffset,
                 EndPosition = linePositions[firstHeaderLineIdx],
                 StartLineNumber = 0,
                 LineCount = firstHeaderLineIdx,
             };
             // 第一个卷标题之前的序章归属于一个特殊「正文」卷
             currentVolume.Title = "正文";
-            currentVolume.StartPosition = 0;
+            currentVolume.StartPosition = byteOffset;
             currentVolume.Chapters.Add(preChapter);
         }
 
@@ -317,6 +328,15 @@ public sealed class ChapterParser
         m = ReEnglishChapter.Match(line);
         if (m.Success) { number = m.Groups[1].Value; tail = m.Groups[2].Value; kind = "EnChapter"; return true; }
 
+        m = ReSpecialChapter.Match(line);
+        if (m.Success && IsSpecialChapterHeader(line, m.Groups[2].Value))
+        {
+            number = ""; // 无编号，后续按顺序回填
+            tail = m.Groups[2].Value.Trim();
+            kind = "Special";
+            return true;
+        }
+
         m = ReNumbered.Match(line);
         if (m.Success)
         {
@@ -331,6 +351,25 @@ public sealed class ChapterParser
             }
         }
 
+        return false;
+    }
+
+    /// <summary>
+    /// 特殊标题词（楔子/番外/尾声…）出现在行首时，还需像一个标题才算数：
+    /// 词后必须是行尾、分隔符或序号（防止「楔子是一种…」这类正文行被误切），
+    /// 且整行足够短。
+    /// </summary>
+    private static bool IsSpecialChapterHeader(string line, string rest)
+    {
+        if (line.Trim().Length > 40) return false;
+        if (rest.Length == 0) return true;                       // 词独立成行，如「楔子」
+        if (char.IsWhiteSpace(rest[0])) return true;             // 「尾声 黎明」
+
+        var c = rest.TrimStart();
+        if (c.Length == 0) return true;
+        if ("：:、·—－-（(【[「《".IndexOf(c[0]) >= 0) return true;  // 「后记：感谢」
+        if (char.IsDigit(c[0])) return true;                     // 「番外2」
+        if (CnDigitMap.ContainsKey(c[0]) || CnUnitMap.ContainsKey(c[0])) return true; // 「番外一」
         return false;
     }
 }
