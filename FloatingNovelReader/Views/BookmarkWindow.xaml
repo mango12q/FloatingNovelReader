@@ -1,0 +1,44 @@
+<Window x:Class="FloatingNovelReader.Views.BookmarkWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="书签列表"
+        Width="450" Height="500"
+        WindowStartupLocation="CenterOwner"
+        Background="White">
+    <Grid Margin="6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="BookTitleText" FontSize="14" FontWeight="Bold" Margin="6"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="BookmarkList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#EEE" BorderThickness="0,0,0,1" Padding="6" Cursor="Hand"
+                                MouseLeftButtonUp="OnBookmarkClick" Tag="{Binding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Note}" FontWeight="Bold"/>
+                                    <TextBlock>
+                                        <Run Text="第 " />
+                                        <Run Text="{Binding PageNumber, Mode=OneWay}"/>
+                                        <Run Text=" 页" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding CreatedTime, StringFormat='yyyy-MM-dd HH:mm'}" FontSize="11" Foreground="Gray"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="删除" Padding="8,2" VerticalAlignment="Center"
+                                        Click="OnRemoveClick" Tag="{Binding}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Window>

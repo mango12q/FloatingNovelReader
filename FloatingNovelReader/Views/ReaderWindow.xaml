@@ -1,0 +1,83 @@
+<Window x:Class="FloatingNovelReader.Views.ReaderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:FloatingNovelReader.Controls"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="浮窗小说阅读器"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="CanResize"
+        Width="500" Height="700"
+        MinWidth="300" MinHeight="200"
+        SizeToContent="Manual"
+        WindowStartupLocation="Manual"
+        Loaded="OnLoaded"
+        Closing="OnClosing"
+        SizeChanged="OnSizeChanged"
+        LocationChanged="OnLocationChanged"
+        x:Name="Root">
+    <WindowChrome.WindowChrome>
+        <!-- WindowChrome 让 WPF 自动处理非客户区 (NC) 边缘 resize,
+             客户区交给内容处理。配合 AllowsTransparency=True 仍能保留圆角。 -->
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="5"
+                            CornerRadius="4" GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <!-- 根 Border 负责捕获拖动：
+         - 在 Bubble 阶段订阅 MouseLeftButtonDown
+         - 子元素（按钮、文本）Click/Down 时 handled=true 不会冒泡到 Border
+         - 空白处/文本处 handled=false 会冒泡到 Border 触发 DragMove
+         - 边缘 5px 由 WindowChrome.ResizeBorderThickness 处理为原生 resize -->
+    <Border x:Name="RootBorder" CornerRadius="4" BorderBrush="#33000000" BorderThickness="1" Background="Transparent"
+            MouseLeftButtonDown="OnBorderMouseLeftButtonDown">
+        <Grid x:Name="RootGrid" Margin="0">
+            <!-- 文本区: Panel.ZIndex=1 让滚动/选中可正常工作，鼠标事件会 bubble 到 RootBorder 触发拖动 -->
+            <Grid Panel.ZIndex="1" Margin="5">
+                <Border x:Name="TextArea" Background="{Binding BackgroundBrush}" CornerRadius="3">
+                    <ScrollViewer x:Name="TextScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
+                        <TextBlock x:Name="PageTextView"
+                                   Text="{Binding PageText, Mode=OneWay}"
+                                   FontFamily="{Binding FontFamily}"
+                                   FontSize="{Binding FontSize}"
+                                   FontWeight="{Binding FontWeight}"
+                                   Foreground="{Binding ForegroundBrush}"
+                                   TextWrapping="Wrap"
+                                   Padding="12,8,12,8"
+                                   LineStackingStrategy="BlockLineHeight"/>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- 顶部悬停控制栏 -->
+            <Grid Panel.ZIndex="2" x:Name="TopHitArea" Height="40" VerticalAlignment="Top" Background="Transparent"
+                  MouseEnter="OnTopAreaEnter" MouseLeave="OnTopAreaLeave">
+                <ctrl:OverlayControlBar x:Name="TopBar" Opacity="0" Margin="5,5,5,0"
+                                        SettingsClick="OnSettingsClick" CloseClick="OnCloseClick"
+                                        MenuChapterListClick="OnMenuChapterListClick"
+                                        MenuBookmarkListClick="OnMenuBookmarkListClick"
+                                        MenuSettingsClick="OnSettingsClick"/>
+            </Grid>
+
+            <!-- 底部悬停控制栏 -->
+            <Grid Panel.ZIndex="2" x:Name="BottomHitArea" Height="50" VerticalAlignment="Bottom" Background="Transparent"
+                  MouseEnter="OnBottomAreaEnter" MouseLeave="OnBottomAreaLeave">
+                <ctrl:OverlayControlBar x:Name="BottomBar" Opacity="0" Margin="5,0,5,5" VerticalAlignment="Bottom"
+                                        SettingsClick="OnSettingsClick" CloseClick="OnCloseClick"
+                                        MenuChapterListClick="OnMenuChapterListClick"
+                                        MenuBookmarkListClick="OnMenuBookmarkListClick"
+                                        MenuSettingsClick="OnSettingsClick"/>
+            </Grid>
+
+            <!-- 状态文本 -->
+            <TextBlock Panel.ZIndex="2" x:Name="StatusTextView"
+                       Text="{Binding StatusText}"
+                       Foreground="#80FFFFFF"
+                       VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                       Margin="0,0,0,12"
+                       FontSize="11"
+                       IsHitTestVisible="False"/>
+        </Grid>
+    </Border>
+</Window>

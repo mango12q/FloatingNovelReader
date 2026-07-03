@@ -1,0 +1,20 @@
+bin/
+obj/
+.bin/
+.obj/
+publish/
+*.user
+.vs/
+.idea/
+*.suo
+*.log
+
+# VSCode (保留 .vscode 文件夹，过滤部分缓存)
+.vscode/settings.json.bak
+
+# 用户日志/数据库
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+logs/
