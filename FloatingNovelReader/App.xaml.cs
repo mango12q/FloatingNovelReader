@@ -30,6 +30,9 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 注册 GBK / GB18030 / Big5 等 CodePages 编码（.NET 8 默认不带）
+        Helpers.EncodingSupport.EnsureRegistered();
+
         // 0. 卸载模式
         if (Array.Exists(e.Args, a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)))
         {
