@@ -115,7 +115,8 @@ public sealed class ChapterParser
     /// <param name="filePath">原文件路径</param>
     /// <param name="fileSize">文件大小（字节）</param>
     /// <param name="encoding">文件实际编码，用于正确计算字节偏移量</param>
-    public Book Parse(string text, string filePath, long fileSize, Encoding? encoding = null)
+    /// <param name="byteOffset">正文起始的字节偏移（文件头 BOM 的字节数，解码后的 text 中已被剥掉）</param>
+    public Book Parse(string text, string filePath, long fileSize, Encoding? encoding = null, long byteOffset = 0)
     {
         var book = new Book
         {
@@ -131,15 +132,19 @@ public sealed class ChapterParser
             book.Author = authorMatch.Groups[1].Value.Trim();
         }
 
-        // 拆分行为 line list
+        // 拆分行为 line list。
+        // 偏移按「实际编码」计算：换行符在 UTF-16 下是 2 字节，硬编码 +1 会让
+        // 每行偏移累积错位，阅读时按偏移回读的章节内容全是乱码。
         var lines = text.Split('\n');
         var linePositions = new long[lines.Length + 1];
-        long pos = 0;
         var byteEnc = encoding ?? Encoding.UTF8;
+        int newlineBytes = byteEnc.GetByteCount("\n");
+        long pos = byteOffset;
         for (int i = 0; i < lines.Length; i++)
         {
             linePositions[i] = pos;
-            pos += byteEnc.GetByteCount(lines[i].AsSpan(0, lines[i].Length > 0 ? lines[i].Length : 0)) + 1; // +1 for \n
+            pos += byteEnc.GetByteCount(lines[i]);
+            if (i < lines.Length - 1) pos += newlineBytes; // 行间必有 \n；最后一行后不一定有
         }
         linePositions[lines.Length] = pos;
 
@@ -177,13 +182,13 @@ public sealed class ChapterParser
                 ChapterNumber = 0,
                 DisplayNumber = 1,
                 Title = book.Title,
-                StartPosition = 0,
+                StartPosition = byteOffset,
                 EndPosition = fileSize,
                 StartLineNumber = 0,
                 LineCount = lines.Length,
             };
             currentVolume.Chapters.Add(singleChapter);
-            currentVolume.StartPosition = 0;
+            currentVolume.StartPosition = byteOffset;
             currentVolume.EndPosition = fileSize;
             book.Volumes = volumes;
             book.TotalVolumes = 1;
@@ -202,14 +207,14 @@ public sealed class ChapterParser
                 ChapterNumber = chapterNumberCounter++,
                 DisplayNumber = 0,
                 Title = preTitle,
-                StartPosition = 0,
+                StartPosition = byteOffset,
                 EndPosition = linePositions[firstHeaderLineIdx],
                 StartLineNumber = 0,
                 LineCount = firstHeaderLineIdx,
             };
             // 第一个卷标题之前的序章归属于一个特殊「正文」卷
             currentVolume.Title = "正文";
-            currentVolume.StartPosition = 0;
+            currentVolume.StartPosition = byteOffset;
             currentVolume.Chapters.Add(preChapter);
         }
 
