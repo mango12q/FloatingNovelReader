@@ -306,22 +306,8 @@ public sealed partial class ReaderViewModel : ObservableObject
         if (CurrentChapter == null || CurrentBook == null) return;
         try
         {
-            using var fs = File.OpenRead(CurrentBook.FilePath);
-            fs.Seek(CurrentChapter.StartPosition, SeekOrigin.Begin);
-            int len = (int)(CurrentChapter.EndPosition - CurrentChapter.StartPosition);
-            var buf = new byte[len];
-            fs.Read(buf, 0, len);
-            // 用 Book 的编码
-            var enc = Encoding.GetEncoding(CurrentBook.Encoding ?? "utf-8", new EncoderExceptionFallback(), new DecoderExceptionFallback());
-            try
-            {
-                _currentChapterText = enc.GetString(buf);
-            }
-            catch
-            {
-                // 兜底用 UTF-8
-                _currentChapterText = Encoding.UTF8.GetString(buf);
-            }
+            _currentChapterText = ChapterContentReader.Read(
+                CurrentBook.FilePath, CurrentChapter, CurrentBook.Encoding);
             ChapterTitle = CurrentChapter.Title;
         }
         catch (Exception ex)
