@@ -16,7 +16,9 @@ param(
     [switch]$SkipTests,
     [switch]$SkipPublish,
     [string]$Configuration = "Release",
-    [string]$Rid = "win-x64"
+    [string]$Rid = "win-x64",
+    # 发布版本号（如 0.5.0 或 0.5.0-beta）；为空则沿用 csproj 中的版本
+    [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -74,6 +76,18 @@ if (-not $SkipPublish) {
     $publishRoot = Join-Path $ProjectRoot "publish"
     $portableDir = Join-Path $publishRoot "$Rid-portable"
 
+    # 指定 -Version 时覆盖 csproj 中的版本号（FileVersion/AssemblyVersion 只取数字部分）
+    $versionProps = @()
+    if ($Version) {
+        $baseVersion = ($Version -split '-')[0]
+        $versionProps = @(
+            "-p:Version=$Version",
+            "-p:InformationalVersion=$Version",
+            "-p:FileVersion=$baseVersion.0",
+            "-p:AssemblyVersion=$baseVersion.0"
+        )
+    }
+
     # portable：Framework-Dependent 单文件，约 4 MB，需 .NET 8 桌面运行时
     # 注意：Framework-Dependent 模式不支持 EnableCompressionInSingleFile
     dotnet publish FloatingNovelReader/FloatingNovelReader.csproj `
@@ -81,12 +95,15 @@ if (-not $SkipPublish) {
         --self-contained false `
         -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
+        $versionProps `
         -o $portableDir
     if ($LASTEXITCODE -ne 0) { throw "portable 发布失败" }
 
     Rename-Exe -Dir $portableDir -FromName "FloatingNovelReader.exe" -ToName "floating-novel-reader-portable.exe"
 
-    $portableZip = Join-Path $publishRoot "floating-novel-reader-portable-$Rid-$timestamp.zip"
+    # zip 命名：有版本号用版本号，否则退回时间戳
+    $suffix = if ($Version) { "v$Version" } else { $timestamp }
+    $portableZip = Join-Path $publishRoot "floating-novel-reader-portable-$Rid-$suffix.zip"
     New-Zip -SourceDir $portableDir -ZipPath $portableZip
 }
 

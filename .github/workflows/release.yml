@@ -1,0 +1,40 @@
+name: Release
+
+# 推送 v 开头的 tag（如 v0.5.0）即自动：构建 → 测试 → 发布 portable EXE + zip → 创建 GitHub Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: 构建并发布 Release
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 安装 .NET SDK 8
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: 构建 + 测试 + 发布（复用 Build/build.ps1）
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          ./Build/build.ps1 -Version $version
+
+      - name: 创建 GitHub Release 并上传产物
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $exe = "publish/win-x64-portable/floating-novel-reader-portable.exe"
+          $zip = (Get-ChildItem publish -Filter '*.zip' | Select-Object -First 1).FullName
+          if (-not (Test-Path $exe)) { throw "未找到发布产物：$exe" }
+          if (-not $zip) { throw "未找到 zip 产物" }
+          gh release create $env:GITHUB_REF_NAME $exe $zip --title $env:GITHUB_REF_NAME --generate-notes

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: 构建 + 测试 (windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 安装 .NET SDK 8
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: 还原 NuGet 包
+        run: dotnet restore FloatingNovelReader.sln
+
+      - name: 构建 (Release)
+        run: dotnet build FloatingNovelReader.sln -c Release --no-restore
+
+      - name: 运行单元测试
+        run: dotnet test FloatingNovelReader.Tests/FloatingNovelReader.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+
+      # 冒烟验证发布路径（与 Build/build.ps1 的 portable 发布参数一致），
+      # 确保发版流程不会在打 tag 时才发现坏掉
+      - name: 发布冒烟（portable 单文件）
+        run: dotnet publish FloatingNovelReader/FloatingNovelReader.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish-smoke

@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/mango12q/FloatingNovelReader/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mango12q/FloatingNovelReader/ci.yml?style=for-the-badge&label=CI" alt="CI"></a>
   <a href="#-下载安装"><img src="https://img.shields.io/badge/下载-Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download"></a>
   <a href="#-使用说明"><img src="https://img.shields.io/badge/平台-Windows%2010%2F11-blue?style=for-the-badge&logo=windows" alt="Platform"></a>
   <a href="#-使用说明"><img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET"></a>
@@ -354,6 +355,9 @@ dotnet test
 
 # 跳过测试
 .\Build\build.ps1 -SkipTests
+
+# 指定版本号（覆盖 csproj 中的版本，zip 也按版本命名）
+.\Build\build.ps1 -Version 0.5.0
 ```
 
 产物在 `publish/` 目录下：
@@ -363,6 +367,16 @@ publish/
 ├── win-x64-portable/
 │   └── floating-novel-reader-portable.exe   # 单文件 EXE（约 4 MB）
 └── floating-novel-reader-portable-win-x64-*.zip  # zip 压缩包（约 2 MB）
+```
+
+### 持续集成与自动发版
+
+- **CI**（[ci.yml](.github/workflows/ci.yml)）：每次 push / PR 到 `main`，GitHub Actions 在 Windows runner 上自动执行 构建 → 单元测试 → portable 发布冒烟
+- **自动发版**（[release.yml](.github/workflows/release.yml)）：推送 `v*` 格式的 tag 即自动构建并创建 GitHub Release，附带 portable EXE 与 zip：
+
+```powershell
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 ---
