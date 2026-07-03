@@ -67,7 +67,7 @@ namespace FloatingNovelReader.Views {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/FloatingNovelReader;component/views/chapterlistwindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/FloatingNovelReader;V1.0.0.0;component/views/chapterlistwindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\ChapterListWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

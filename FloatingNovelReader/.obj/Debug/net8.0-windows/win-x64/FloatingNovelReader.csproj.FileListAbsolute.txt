@@ -2,7 +2,6 @@ E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\FloatingNovelRea
 E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\FloatingNovelReader.deps.json
 E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\FloatingNovelReader.runtimeconfig.json
 E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\FloatingNovelReader.dll
-E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\FloatingNovelReader.pdb
 E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\CommunityToolkit.Mvvm.dll
 E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\Microsoft.Data.Sqlite.dll
 E:\novel2\FloatingNovelReader\.bin\Debug\net8.0-windows\win-x64\Microsoft.Extensions.Configuration.dll
@@ -68,6 +67,5 @@ E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\FloatingNovelRea
 E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\Floating.8A0F5E00.Up2Date
 E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\FloatingNovelReader.dll
 E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\refint\FloatingNovelReader.dll
-E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\FloatingNovelReader.pdb
 E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\FloatingNovelReader.genruntimeconfig.cache
 E:\novel2\FloatingNovelReader\.obj\Debug\net8.0-windows\win-x64\ref\FloatingNovelReader.dll

@@ -49,33 +49,72 @@
 - **Boss Key**：`F8` 一键隐藏窗口
 - **边缘吸附**：拖到屏幕边缘自动贴边
 
+### 🔧 安装与卸载
+- **首次运行自动安装**：复制到用户目录 + 创建桌面/开始菜单快捷方式 + 注册到「设置 → 应用」
+- **便携模式**：加 `--portable` 参数启动则不安装，直接运行
+- **卸载**：从「设置 → 应用」卸载，或运行 `FloatingNovelReader.exe --uninstall`
+- **运行时检测**：启动时自动检测 .NET 8 桌面运行时，未安装则引导下载
+
 ---
 
 ## 📥 下载安装
 
-前往 [**Releases 页面**](../../releases) 下载最新版本，提供两个版本：
+前往 [**Releases**](../../releases) 下载最新版本。
 
-| 版本 | 体积 | 依赖 | 适用场景 |
-|------|------|------|----------|
-| **`floating-novel-reader-portable.exe`** | 小（约 5 MB） | 需安装 .NET 8 桌面运行时 | 已装 .NET 8 的开发机 / 喜欢小文件分发 |
-| **`floating-novel-reader-standalone.exe`** | 大（约 150 MB） | 无需任何依赖 | **推荐**·直接双击运行，最省心 |
+### 下载内容
 
-### 选择指南
+每个 Release 提供以下文件：
 
-- 🟢 **绝大多数用户** → 下载 `standalone` 版本，双击就能用
-- 🟡 已经装过 .NET 8 / 想节省带宽 → 下载 `portable` 版本
-- 🔴 不确定 → 直接下 `standalone`，不会出错
+| 文件 | 说明 |
+|------|------|
+| `floating-novel-reader-portable.exe` | 单个 EXE，直接双击运行 |
+| `floating-novel-reader-portable-win-x64-*.zip` | 同上 EXE 的 zip 压缩包 |
 
-### 安装 .NET 8 运行时（仅 portable 需要）
+### 运行环境
 
-如果选择 `portable` 但没装 .NET 8，程序会启动失败并提示下载。访问：
-👉 https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0 → 选择「桌面运行时」 → 下载安装 → 重启程序。
+| 需求 | 说明 |
+|------|------|
+| 操作系统 | Windows 10 / 11（64 位） |
+| 运行时 | **.NET 8 桌面运行时**（Desktop Runtime） |
+
+### 安装 .NET 8 桌面运行时
+
+程序启动时会自动检测运行时。如果未安装，会弹出提示对话框，点击「确定」自动打开浏览器前往下载页。
+
+也可以手动下载：
+👉 https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0/runtime
+
+> 选择「.NET 桌面运行时」（Desktop Runtime），下载 x64 安装包，双击安装即可。
+
+### 安装步骤
+
+1. 下载 `floating-novel-reader-portable.exe`（或解压 zip 后的 EXE）
+2. 双击运行
+3. 首次运行会弹出安装确认对话框：
+
+   - **点击「是」** → 自动安装到 `%LocalAppData%\Programs\FloatingNovelReader\`，创建桌面和开始菜单快捷方式，注册到系统卸载列表
+   - **点击「否」** → 以便携模式直接运行，不安装任何文件
+
+4. 安装后，从桌面快捷方式启动即可
+
+### 卸载
+
+任选一种方式：
+
+- **方式 1**：「设置 → 应用 → 已安装的应用」找到「浮窗小说阅读器」→ 卸载
+- **方式 2**：命令行运行 `FloatingNovelReader.exe --uninstall`
+
+卸载会自动删除程序文件、桌面快捷方式、开始菜单文件夹和注册表项。
+
+### 联系作者
+
+如有问题或建议，请联系：**mango12q@163.com**
 
 ---
 
 ## 🚀 快速开始
 
-1. 下载并运行上面的 EXE
+1. 下载并运行 EXE（首次运行点击「是」安装）
 2. 主窗口「书架」→ 点击「导入」按钮 → 选一个 TXT 文件
 3. 等待进度条走完（首次导入约几秒，1MB 以内瞬间完成）
 4. 双击书籍卡片 → 阅读窗口弹出
@@ -99,12 +138,6 @@
 | `Ctrl+↑` / `Ctrl+↓` | 增加 / 降低透明度 |
 
 > 所有快捷键都可在 **设置 → 快捷键** 中改键或清空。
-
----
-
-## 🖼️ 界面预览
-
-> 截图待补充
 
 ---
 
@@ -133,23 +166,28 @@
 ├── .editorconfig
 ├── .vscode/
 ├── Build/
-│   └── build.ps1
-├── FloatingNovelReader/                  # 主项目（WPF）
-│   ├── App.xaml(.cs)
+│   └── build.ps1                          # 一键构建 + 发布 portable EXE + zip
+├── FloatingNovelReader/                   # 主项目（WPF）
+│   ├── App.xaml(.cs)                       # 入口：运行时检测 + 自安装 + DI
 │   ├── app.manifest
-│   ├── Core/                             # 基础设施（事件总线 / 全局热键 / 配置）
-│   ├── Models/                           # 数据模型
-│   ├── Services/                         # 业务服务（数据库 / 导入 / 分页 / 书签）
-│   ├── ViewModels/                       # MVVM ViewModel
-│   ├── Views/                            # 窗口 XAML
-│   ├── Controls/                         # 自定义控件（HotkeyTextBox 等）
-│   ├── Helpers/                          # 辅助工具（卷章解析 / 编码探测 / Win32 封装）
-│   ├── Converters/                       # WPF 值转换器
+│   ├── Core/                               # 基础设施
+│   │   ├── SelfInstaller.cs                # 首次运行自安装 + 卸载
+│   │   ├── EventBus.cs
+│   │   ├── HotkeyManager.cs                # 全局热键 + 录制态隔离
+│   │   ├── KeyGestureLite.cs               # 单键/组合键描述
+│   │   └── SettingsService.cs
+│   ├── Models/                             # 数据模型
+│   ├── Services/                           # 业务服务
+│   ├── ViewModels/                         # MVVM ViewModel
+│   ├── Views/                              # 窗口 XAML
+│   ├── Controls/                           # 自定义控件（HotkeyTextBox）
+│   ├── Helpers/                            # 辅助工具（卷章解析/编码探测/Win32）
+│   ├── Converters/
 │   ├── Properties/
 │   └── Resources/
 │       ├── Icons/
 │       └── Styles.xaml
-└── FloatingNovelReader.Tests/            # 单元测试
+└── FloatingNovelReader.Tests/              # 单元测试（64 用例）
     ├── Core/
     ├── Helpers/
     └── Services/
@@ -168,11 +206,9 @@
 ### 命令行
 
 ```powershell
-# 克隆
 git clone https://github.com/你的用户名/floating-novel-reader.git
 cd floating-novel-reader
 
-# 还原 + 编译 + 测试
 dotnet restore
 dotnet build -c Release
 dotnet test
@@ -181,36 +217,21 @@ dotnet test
 ### 发布
 
 ```powershell
-# 1. 小 EXE（portable，Framework-Dependent 单文件）
-dotnet publish FloatingNovelReader -c Release -r win-x64 `
-    --self-contained false `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -o publish/portable
-
-# 2. 大 EXE（standalone，Self-Contained 单文件，无需运行时）
-dotnet publish FloatingNovelReader -c Release -r win-x64 `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:EnableCompressionInSingleFile=true `
-    -o publish/standalone
-
-# 产物在 publish/portable/ 和 publish/standalone/ 下
-```
-
-### 一键发布
-
-```powershell
+# 一键发布（还原 + 构建 + 测试 + 发布 EXE + 打包 zip）
 .\Build\build.ps1
+
+# 跳过测试
+.\Build\build.ps1 -SkipTests
 ```
 
-可选参数：
+产物在 `publish/` 目录下：
 
-| 参数 | 说明 |
-|------|------|
-| `-Configuration Release` | 默认 Release |
-| `-Rid win-x64` | 目标 RID |
-| `-SkipTests` | 跳过单元测试 |
+```
+publish/
+├── win-x64-portable/
+│   └── floating-novel-reader-portable.exe       # 单文件 EXE（约 4 MB）
+└── floating-novel-reader-portable-win-x64-*.zip # zip 压缩包（约 2 MB）
+```
 
 ---
 
@@ -221,6 +242,7 @@ dotnet publish FloatingNovelReader -c Release -r win-x64 `
 | 库数据 | `%LocalAppData%\FloatingNovelReader\library.db` |
 | 设置 | `%LocalAppData%\FloatingNovelReader\settings.json` |
 | 日志 | `%LocalAppData%\FloatingNovelReader\Logs\app-YYYY-MM-DD.log` |
+| 安装目录 | `%LocalAppData%\Programs\FloatingNovelReader\` |
 
 ---
 
@@ -245,9 +267,7 @@ dotnet test
 
 ---
 
-## 🙏 致谢
+## 📧 联系方式
 
-- [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)
-- [MouseKeyHook](https://github.com/gmamaladze/globalmousekeyhook)
-- [Ude.NetStandard](https://github.com/errepi/ude)
-- [Serilog](https://serilog.net/)
+- **作者邮箱**：mango12q@163.com
+- **问题反馈**：[Issues](../../issues)

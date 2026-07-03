@@ -151,7 +151,6 @@ E:\novel2\FloatingNovelReader.Tests\.bin\Debug\net8.0-windows\runtimes\win-x64\n
 E:\novel2\FloatingNovelReader.Tests\.bin\Debug\net8.0-windows\runtimes\win-x86\native\e_sqlite3.dll
 E:\novel2\FloatingNovelReader.Tests\.bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Diagnostics.EventLog.dll
 E:\novel2\FloatingNovelReader.Tests\.bin\Debug\net8.0-windows\FloatingNovelReader.dll
-E:\novel2\FloatingNovelReader.Tests\.bin\Debug\net8.0-windows\FloatingNovelReader.pdb
 E:\novel2\FloatingNovelReader.Tests\.obj\Debug\net8.0-windows\FloatingNovelReader.Tests.csproj.AssemblyReference.cache
 E:\novel2\FloatingNovelReader.Tests\.obj\Debug\net8.0-windows\FloatingNovelReader.Tests.GeneratedMSBuildEditorConfig.editorconfig
 E:\novel2\FloatingNovelReader.Tests\.obj\Debug\net8.0-windows\FloatingNovelReader.Tests.AssemblyInfoInputs.cache

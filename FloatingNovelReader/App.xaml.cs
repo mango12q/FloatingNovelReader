@@ -30,13 +30,22 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 0. 卸载模式
+        if (Array.Exists(e.Args, a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)))
+        {
+            Core.SelfInstaller.Uninstall();
+            Shutdown();
+            return;
+        }
+
         // 1. .NET 8 Runtime 缺失检测
         if (!IsDotNet8RuntimeInstalled())
         {
             var result = MessageBox.Show(
                 "检测到您的电脑未安装 .NET 8 Desktop Runtime，这是运行本程序必需的组件。\n\n" +
                 "点击「确定」前往微软官网下载安装，安装完成后重新启动本程序。\n" +
-                "点击「取消」退出程序。",
+                "点击「取消」退出程序。\n\n" +
+                "如需帮助，请联系作者：mango12q@163.com",
                 ".NET 8 运行时未安装",
                 MessageBoxButton.OKCancel,
                 MessageBoxImage.Information);
@@ -59,6 +68,14 @@ public partial class App : Application
         if (!isFirst)
         {
             MessageBox.Show("程序已经在运行。", "浮窗小说阅读器", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
+
+        // 2.5 首次运行自安装（非安装目录启动时弹安装对话框）
+        if (Core.SelfInstaller.TrySelfInstall())
+        {
+            // 已启动安装后的副本，当前进程退出
             Shutdown();
             return;
         }
