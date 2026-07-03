@@ -17,7 +17,6 @@
         Loaded="OnLoaded"
         Closing="OnClosing"
         SizeChanged="OnSizeChanged"
-        LocationChanged="OnLocationChanged"
         x:Name="Root">
     <WindowChrome.WindowChrome>
         <!-- WindowChrome 让 WPF 自动处理非客户区 (NC) 边缘 resize,

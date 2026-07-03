@@ -37,7 +37,9 @@ public sealed class PaginationService
         double areaWidth,
         double areaHeight)
     {
-        var key = $"{fontFamily}|{fontSize}|{lineHeight}|{areaWidth}|{areaHeight}|{chapterText.Length}";
+        // 用文本内容哈希替代纯长度判断，防止不同文本长度相同导致缓存误命中
+        var textHash = (uint)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(chapterText);
+        var key = $"{fontFamily}|{fontSize}|{lineHeight}|{areaWidth}|{areaHeight}|{textHash:X}";
         lock (_lock)
         {
             if (_cacheKey == key && _cache.TryGetValue(chapterText, out var cached))
@@ -114,5 +116,30 @@ public sealed class PaginationService
     public void ClearCache()
     {
         lock (_lock) { _cache.Clear(); _cacheKey = null; }
+    }
+
+    /// <summary>
+    /// 窗口尺寸变化时调用。当宽高变化量均小于 threshold 时不重算（复用旧分页），
+    /// 降低窗口拖拽过程中不必要的 CPU 占用。
+    /// </summary>
+    public bool InvalidateIfSizeChanged(double newWidth, double newHeight, double threshold = 50)
+    {
+        lock (_lock)
+        {
+            if (_cacheKey is not null)
+            {
+                // 从 _cacheKey 中解析上次的 areaWidth/areaHeight
+                var parts = _cacheKey.Split('|');
+                if (parts.Length >= 4 &&
+                    double.TryParse(parts[3], out var cachedW) &&
+                    double.TryParse(parts[4], out var cachedH) &&
+                    Math.Abs(cachedW - newWidth) < threshold &&
+                    Math.Abs(cachedH - newHeight) < threshold)
+                {
+                    return false; // 尺寸变化微小，不需要重算
+                }
+            }
+            return true; // 需要重算
+        }
     }
 }

@@ -4,28 +4,31 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FloatingNovelReader;
 using FloatingNovelReader.Core;
 using FloatingNovelReader.Helpers;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
+using FloatingNovelReader.Views;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Serilog;
 
 namespace FloatingNovelReader.ViewModels;
 
 /// <summary>
-/// 阅读器主窗口 VM。
+/// 阅读器主窗口 ViewModel。
 /// 职责：
 ///   - 当前书 / 当前章 / 当前页
 ///   - 翻页（下一页 / 上一页 / 上一章 / 下一章 / 跳转）
 ///   - 加载章节文本并分页
 ///   - 自动阅读联动
 ///   - 状态显示（页码、章节名、阅读百分比）
+///   - 通过 IEventAggregator 接收热键事件（替代直接持有 HotkeyManager）
 /// </summary>
 public sealed partial class ReaderViewModel : ObservableObject
 {
@@ -36,7 +39,7 @@ public sealed partial class ReaderViewModel : ObservableObject
     private readonly WindowBehaviorService _windowBehavior;
     private readonly BookmarkService _bookmark;
     private readonly SettingsService _settings;
-    private readonly DatabaseService _db;
+    private readonly IEventAggregator<IEventMarker> _events;
 
     [ObservableProperty] private Book? _currentBook;
     [ObservableProperty] private Chapter? _currentChapter;
@@ -70,7 +73,7 @@ public sealed partial class ReaderViewModel : ObservableObject
         WindowBehaviorService windowBehavior,
         BookmarkService bookmark,
         SettingsService settings,
-        DatabaseService db)
+        IEventAggregator<IEventMarker> events)
     {
         _bookshelf = bookshelf;
         _session = session;
@@ -79,7 +82,7 @@ public sealed partial class ReaderViewModel : ObservableObject
         _windowBehavior = windowBehavior;
         _bookmark = bookmark;
         _settings = settings;
-        _db = db;
+        _events = events;
 
         // 监听自动阅读
         _autoRead.Tick += (s, e) => Application.Current?.Dispatcher.Invoke(NextPage);
@@ -89,7 +92,87 @@ public sealed partial class ReaderViewModel : ObservableObject
         // 监听设置变更
         _settings.SettingsChanged += (s, e) => ApplyDisplaySettings();
 
+        // 通过事件聚合器接收热键事件（替代直接持有 HotkeyManager）
+        _events.Subscribe<HotkeyPressedEvent>(OnHotkeyReceived);
+
         ApplyDisplaySettings();
+    }
+
+    /// <summary>
+    /// 接收热键事件（由 IEventAggregator 分发，HotkeyManager 发布）。
+    /// 检查 CurrentBook != null 而非 ReaderWindow.IsVisible，
+    /// 确保启动时即使 ReaderWindow 尚未创建（启动行为=打开书架），热键依然能被接收。
+    /// </summary>
+    private void OnHotkeyReceived(HotkeyPressedEvent e)
+    {
+        // 没有加载书时不响应阅读相关热键
+        if (CurrentBook == null)
+            return;
+
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            switch (e.Action)
+            {
+                case HotkeyAction.NextPage: NextPageCommand.Execute(null); break;
+                case HotkeyAction.PrevPage: PrevPageCommand.Execute(null); break;
+                case HotkeyAction.NextChapter: NextChapterCommand.Execute(null); break;
+                case HotkeyAction.PrevChapter: PrevChapterCommand.Execute(null); break;
+                case HotkeyAction.IncreaseOpacity: _windowBehavior.IncreaseOpacity(); break;
+                case HotkeyAction.DecreaseOpacity: _windowBehavior.DecreaseOpacity(); break;
+                case HotkeyAction.ToggleClickThrough: _windowBehavior.ToggleClickThrough(); break;
+                case HotkeyAction.ToggleTopmost: _windowBehavior.ToggleTopmost(); break;
+                case HotkeyAction.ToggleAutoRead: ToggleAutoRead(); break;
+                case HotkeyAction.AutoReadFaster: _autoRead.Faster(); break;
+                case HotkeyAction.AutoReadSlower: _autoRead.Slower(); break;
+                case HotkeyAction.HideWindow:
+                    Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault()?.Hide();
+                    break;
+                case HotkeyAction.ShowChapterList: ShowChapterListCommand.Execute(null); break;
+                case HotkeyAction.ShowBookmarkList: ShowBookmarkListCommand.Execute(null); break;
+                case HotkeyAction.AddBookmark: AddBookmark(); break;
+            }
+        });
+    }
+
+    /// <summary>
+    /// 热键事件定义（强类型，替代 EventBus 字符串事件名）。
+    /// </summary>
+    public record HotkeyPressedEvent(HotkeyAction Action) : IEventMarker;
+
+    /// <summary>
+    /// 保存窗口状态（供 ReaderWindow.OnClosing 调用）。
+    /// </summary>
+    public void SaveWindowState(double left, double top, double width, double height, double opacity)
+    {
+        _session.SaveProgress(left, top, width, height, opacity);
+    }
+
+    /// <summary>
+    /// 显示章节目录（供 ReaderWindow 命令绑定调用）。
+    /// </summary>
+    [RelayCommand]
+    public void ShowChapterList()
+    {
+        if (CurrentBook == null) return;
+        var w = App.Services.GetRequiredService<ChapterListWindow>();
+        if (w.DataContext is ChapterListViewModel cvm)
+            cvm.Load(CurrentBook);
+        w.Owner = Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault();
+        w.ShowDialog();
+    }
+
+    /// <summary>
+    /// 显示书签列表（供 ReaderWindow 命令绑定调用）。
+    /// </summary>
+    [RelayCommand]
+    public void ShowBookmarkList()
+    {
+        if (CurrentBook == null) return;
+        var w = App.Services.GetRequiredService<BookmarkWindow>();
+        if (w.DataContext is BookmarkListViewModel bvm)
+            bvm.Load(CurrentBook);
+        w.Owner = Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault();
+        w.ShowDialog();
     }
 
     public void LoadBook(Book book, ReadingProgress? progress = null)
@@ -195,14 +278,21 @@ public sealed partial class ReaderViewModel : ObservableObject
         SetChapterAndPage(chapter, page);
     }
 
+    /// <summary>
+    /// 从书签跳转：通过 chapterId 查找章节并跳转。
+    /// </summary>
     public void JumpToProgress(int chapterId, int page)
     {
-        var ch = _db.GetChapter(chapterId);
+        var db = App.Services.GetRequiredService<DatabaseService>();
+        var ch = db.GetChapter(chapterId);
         if (ch != null) SetChapterAndPage(ch, page);
     }
 
     private void SetChapterAndPage(Chapter chapter, int page)
     {
+        _currentChapterText = string.Empty;
+        GC.Collect(0, GCCollectionMode.Optimized, false);
+
         CurrentChapter = chapter;
         _session.SetChapter(chapter);
         LoadChapterContent();
@@ -320,7 +410,9 @@ public sealed partial class ReaderViewModel : ObservableObject
         if (Math.Abs(w - TextAreaWidth) < 0.5 && Math.Abs(h - TextAreaHeight) < 0.5) return;
         TextAreaWidth = w;
         TextAreaHeight = h;
-        RecomputePagination();
+        // 使用增量判断：尺寸变化微小时不重算分页
+        if (_paginator.InvalidateIfSizeChanged(w, h))
+            RecomputePagination();
     }
 
     [RelayCommand]

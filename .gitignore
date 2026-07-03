@@ -1,6 +1,8 @@
 ## .NET 构建产物
 bin/
 obj/
+*/bin/
+*/obj/
 *.user
 *.suo
 

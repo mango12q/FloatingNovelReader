@@ -113,6 +113,12 @@ public partial class App : Application
         hotkey.SetGlobalBindings(Services.GetRequiredService<SettingsService>().Current.Hotkeys.GlobalHotkeys);
         hotkey.Start();
 
+        // 桥接：HotkeyManager → IEventAggregator → ReaderViewModel
+        // 这样热键事件不直接绑定到 View，而是通过强类型事件总线分发
+        var events = Services.GetRequiredService<IEventAggregator<IEventMarker>>();
+        hotkey.HotkeyPressed += (s, action) =>
+            events.Publish(new ReaderViewModel.HotkeyPressedEvent(action));
+
         // 设置变更时重新加载热键绑定, 让用户改完快捷键立刻生效
         var settings = Services.GetRequiredService<SettingsService>();
         settings.SettingsChanged += (s, args) =>

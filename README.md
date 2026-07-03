@@ -141,18 +141,68 @@
 
 ---
 
+## 🏗️ 架构设计
+
+项目采用分层架构，通过接口抽象实现各层解耦：
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Views（ReaderWindow / BookshelfWindow / SettingsWindow）│
+│  仅负责 UI 生命周期事件、窗口交互（拖动/缩放/动画）          │
+└───────────────────────────┬─────────────────────────────┘
+                            │ DataBinding
+┌───────────────────────────▼─────────────────────────────┐
+│  ViewModels（ReaderViewModel / BookshelfViewModel 等）      │
+│  通过 IEventAggregator 接收热键事件，持有 AppServices 引用   │
+└───────────────────────────┬─────────────────────────────┘
+                            │ 调用
+┌───────────────────────────▼─────────────────────────────┐
+│  ApplicationServices（IBookService / BookService）        │
+│  用例编排层：协调多个 Repository 完成业务场景                │
+└───────────────────────────┬─────────────────────────────┘
+                            │ 依赖
+┌───────────────────────────▼─────────────────────────────┐
+│  Infrastructure / Repositories                          │
+│  IBookRepository / IChapterRepository / IBookmarkRepository│
+│  SqliteBookRepository / …  — 可 Mock，可换数据库引擎         │
+└───────────────────────────┬─────────────────────────────┘
+                            │ 使用
+┌───────────────────────────▼─────────────────────────────┐
+│  Core（HotkeyManager / EventAggregator / Constants）       │
+│  HotkeyManager（全局钩子）→ EventAggregator → ViewModel    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**热键事件流**（全局快捷键穿透所有软件）：
+
+```
+键盘按键
+  → HotkeyManager.OnKeyDown()        （全局钩子，后台线程，Gma.System.MouseKeyHook）
+  → HotkeyPressed 事件
+  → App.xaml.cs 桥接
+     events.Publish(new HotkeyPressedEvent(action))
+  → IEventAggregator<HotkeyPressedEvent>
+  → ReaderViewModel.OnHotkeyReceived()  （检查 CurrentBook != null）
+  → Dispatcher.Invoke()               （切换到 UI 线程）
+  → 执行对应操作（翻页 / 穿透 / 置顶 / …）
+```
+
+---
+
 ## 🛠️ 技术栈
 
-| 类别 | 选型 |
-|------|------|
-| 框架 | .NET 8 / WPF |
-| MVVM | CommunityToolkit.Mvvm |
-| DI | Microsoft.Extensions.DependencyInjection |
-| 全局钩子 | MouseKeyHook |
-| 数据库 | SQLite (Microsoft.Data.Sqlite) |
-| 编码检测 | Ude.NetStandard |
-| 日志 | Serilog（按天切割，文件输出） |
-| 单元测试 | xUnit |
+| 类别 | 选型 | 说明 |
+|------|------|------|
+| 框架 | .NET 8 / WPF | `net8.0-windows`，`UseWPF=true` |
+| MVVM | CommunityToolkit.Mvvm 8.4.0 | `[ObservableProperty]` / `[RelayCommand]` |
+| DI | Microsoft.Extensions.DependencyInjection 8.0.1 | 所有服务通过容器解析 |
+| 全局钩子 | Gma.System.MouseKeyHook 5.7.1 | 后台全局键盘监听，支持单键触发 |
+| 数据库 | SQLite（Microsoft.Data.Sqlite 8.0.10） | 5 表，外键级联，`PRAGMA foreign_keys=ON` |
+| 仓储抽象 | 自研 `IRepository<T>` | 每个实体独立 Repository，可 Mock |
+| 事件总线 | `IEventAggregator<T>`（自研） | 强类型事件，编译期检查，替代字符串 EventBus |
+| 编码检测 | Ude.NetStandard 1.2.0 | BOM + 启发式检测（GBK/UTF-8/UTF-16/Big5…） |
+| 日志 | Serilog 4.0.0 | 按日滚动，保留 30 天，`%LocalAppData%\FloatingNovelReader\Logs\` |
+| 单元测试 | xUnit 2.9.2 + Moq | 64 个测试用例 |
 
 ---
 
@@ -164,33 +214,110 @@
 ├── LICENSE
 ├── .gitignore
 ├── .editorconfig
-├── .vscode/
 ├── Build/
 │   └── build.ps1                          # 一键构建 + 发布 portable EXE + zip
 ├── FloatingNovelReader/                   # 主项目（WPF）
-│   ├── App.xaml(.cs)                       # 入口：运行时检测 + 自安装 + DI
+│   ├── App.xaml(.cs)                      # 入口：运行时检测 + 自安装 + DI + 热键桥接
 │   ├── app.manifest
-│   ├── Core/                               # 基础设施
-│   │   ├── SelfInstaller.cs                # 首次运行自安装 + 卸载
-│   │   ├── EventBus.cs
-│   │   ├── HotkeyManager.cs                # 全局热键 + 录制态隔离
-│   │   ├── KeyGestureLite.cs               # 单键/组合键描述
-│   │   └── SettingsService.cs
-│   ├── Models/                             # 数据模型
-│   ├── Services/                           # 业务服务
-│   ├── ViewModels/                         # MVVM ViewModel
-│   ├── Views/                              # 窗口 XAML
-│   ├── Controls/                           # 自定义控件（HotkeyTextBox）
-│   ├── Helpers/                            # 辅助工具（卷章解析/编码探测/Win32）
-│   ├── Converters/
-│   ├── Properties/
+│   ├── AssemblyInfo.cs
+│   │
+│   ├── Core/                              # 基础设施层
+│   │   ├── Bootstrapper.cs               # DI 容器装配
+│   │   ├── Constants.cs                  # 全局常量（路径/尺寸/事件名…）
+│   │   ├── EventBus.cs                   # 兼容层：基于字符串的事件总线
+│   │   ├── IEventAggregator.cs           # 强类型事件聚合器接口
+│   │   ├── EventAggregator.cs            # 强类型事件聚合器实现
+│   │   ├── HotkeyManager.cs              # 全局热键 + 防抖 + 录制屏蔽
+│   │   ├── KeyGestureLite.cs             # 单键/组合键描述
+│   │   └── SelfInstaller.cs              # 首次运行自安装 / 卸载
+│   │
+│   ├── Infrastructure/                    # 基础设施层（新增）
+│   │   ├── IDbConnectionFactory.cs       # SQLite 连接工厂接口
+│   │   ├── SqliteConnectionFactory.cs    # SQLite 连接工厂实现
+│   │   └── Repositories/                 # 仓储层
+│   │       ├── IBookRepository           # 书籍仓储接口
+│   │       ├── SqliteBookRepository      # SQLite 实现
+│   │       ├── IChapterRepository        # 章节仓储接口
+│   │       ├── SqliteChapterRepository   # SQLite 实现
+│   │       ├── IReadingProgressRepository# 进度仓储接口
+│   │       ├── SqliteReadingProgressRepository # SQLite 实现
+│   │       ├── IBookmarkRepository       # 书签仓储接口
+│   │       ├── SqliteBookmarkRepository  # SQLite 实现
+│   │       ├── IVolumeRepository         # 卷仓储接口
+│   │       ├── SqliteVolumeRepository    # SQLite 实现
+│   │       ├── IUnitOfWork               # 工作单元接口
+│   │       └── SqliteUnitOfWork          # SQLite 工作单元实现
+│   │
+│   ├── ApplicationServices/              # 应用服务层（用例编排）
+│   │   ├── IBookService.cs               # 书籍用例接口 + DTO
+│   │   └── BookService.cs                # 用例编排实现（并发查询）
+│   │
+│   ├── Models/                           # 数据模型
+│   │   ├── AppSettings.cs                # 全局应用设置
+│   │   ├── AppState.cs                   # 进程内运行时状态
+│   │   ├── Book.cs / Volume.cs / Chapter.cs
+│   │   ├── Bookmark.cs / ReadingProgress.cs
+│   │   ├── DisplaySettings.cs            # 字体/背景/透明度
+│   │   └── HotkeyConfig.cs               # 快捷键绑定配置
+│   │
+│   ├── Services/                         # 业务服务
+│   │   ├── BookImportService.cs          # TXT 导入全流程
+│   │   ├── BookshelfService.cs           # 书架管理（增删查/排序）
+│   │   ├── BookmarkService.cs            # 书签 CRUD
+│   │   ├── ReadingSessionService.cs      # 阅读会话（当前书/章/页 + 进度保存）
+│   │   ├── PaginationService.cs          # 分页引擎（像素级测量）
+│   │   ├── AutoReadService.cs            # 自动阅读定时器
+│   │   ├── WindowBehaviorService.cs      # 窗口行为（置顶/穿透/透明度/边缘吸附）
+│   │   ├── TrayIconService.cs            # 系统托盘
+│   │   ├── SettingsService.cs            # 设置读写（settings.json）
+│   │   ├── StartupService.cs             # 启动行为（恢复位置 or 打开书架）
+│   │   └── DatabaseService.cs            # 数据库初始化 + 兼容层
+│   │
+│   ├── ViewModels/                       # MVVM ViewModel 层
+│   │   ├── ReaderViewModel.cs            # 阅读器主窗口（热键 via EventAggregator）
+│   │   ├── BookshelfViewModel.cs         # 书架主窗口
+│   │   ├── SettingsViewModel.cs          # 设置窗口
+│   │   ├── ChapterListViewModel.cs       # 章节目录弹窗
+│   │   └── BookmarkListViewModel.cs      # 书签列表弹窗
+│   │
+│   ├── Views/                            # WPF 窗口（XAML + Code-behind）
+│   │   ├── ReaderWindow.xaml(.cs)        # 阅读窗口（无边框/透明/拖动/缩放）
+│   │   ├── BookshelfWindow.xaml(.cs)     # 书架窗口
+│   │   ├── SettingsWindow.xaml(.cs)      # 设置窗口
+│   │   ├── ChapterListWindow.xaml(.cs)   # 章节目录弹窗
+│   │   └── BookmarkWindow.xaml(.cs)      # 书签列表弹窗
+│   │
+│   ├── Controls/                         # 自定义 WPF 控件
+│   │   ├── HotkeyTextBox.cs              # 快捷键录入控件（录制态 + 防误触）
+│   │   ├── OverlayControlBar.xaml(.cs)   # 悬浮控制栏（菜单/设置/关闭）
+│   │   ├── PageTextBlock.cs              # 分页文本渲染控件
+│   │   └── ResizeGrip.cs                 # 8 方向拖拽缩放手柄
+│   │
+│   ├── Helpers/                          # 辅助工具
+│   │   ├── ChapterParser.cs              # 卷章正则解析引擎
+│   │   ├── TextEncoderDetector.cs        # 编码自动检测（BOM + Ude 启发式）
+│   │   ├── Win32Helper.cs                # Win32 API P/Invoke（置顶/穿透）
+│   │   ├── FontHelper.cs                 # 系统字体枚举
+│   │   └── JsonHelper.cs                 # JSON 序列化（settings.json）
+│   │
+│   ├── Converters/                       # WPF 值转换器
+│   │   ├── BoolToVisibilityConverter.cs
+│   │   ├── ColorToBrushConverter.cs
+│   │   └── OpacityToPercentConverter.cs
+│   │
 │   └── Resources/
-│       ├── Icons/
-│       └── Styles.xaml
-└── FloatingNovelReader.Tests/              # 单元测试（64 用例）
-    ├── Core/
-    ├── Helpers/
+│       ├── Icons/app.ico                 # 应用图标
+│       └── Styles.xaml                   # 全局样式
+│
+└── FloatingNovelReader.Tests/            # 单元测试（xUnit，64 用例）
+    ├── Core/KeyGestureLiteTests.cs
+    ├── Helpers/ChineseNumberTests.cs
+    ├── Helpers/TextEncoderDetectorTests.cs
     └── Services/
+        ├── BookImportServiceTests.cs
+        ├── BookshelfServiceTests.cs
+        ├── ChapterParserTests.cs
+        └── PaginationServiceTests.cs
 ```
 
 ---
@@ -206,8 +333,8 @@
 ### 命令行
 
 ```powershell
-git clone https://github.com/你的用户名/floating-novel-reader.git
-cd floating-novel-reader
+git clone https://github.com/mango12q/FloatingNovelReader.git
+cd FloatingNovelReader
 
 dotnet restore
 dotnet build -c Release
@@ -229,8 +356,8 @@ dotnet test
 ```
 publish/
 ├── win-x64-portable/
-│   └── floating-novel-reader-portable.exe       # 单文件 EXE（约 4 MB）
-└── floating-novel-reader-portable-win-x64-*.zip # zip 压缩包（约 2 MB）
+│   └── floating-novel-reader-portable.exe   # 单文件 EXE（约 4 MB）
+└── floating-novel-reader-portable-win-x64-*.zip  # zip 压缩包（约 2 MB）
 ```
 
 ---
@@ -252,12 +379,19 @@ publish/
 dotnet test
 ```
 
-覆盖范围：
+当前覆盖：
 
-- `KeyGestureLite` —— 单键 / 组合键解析与序列化
-- `ChapterParser` —— 卷章解析（第 N 章 + 章节名拼接）
-- `BookImportService` —— TXT 导入完整流程（含编码检测）
-- `BookshelfService` —— 移除 = 完整级联删除
+| 模块 | 测试内容 |
+|------|---------|
+| `KeyGestureLite` | 单键/组合键解析往返（8 条） |
+| `ChapterParser` | 卷章解析全场景（12 条） |
+| `PaginationService` | 分页正确性 + 性能 < 200ms（5 条） |
+| `BookImportService` | TXT 导入端到端 + 重复导入检测（3 条） |
+| `BookshelfService` | 级联删除 CASCADE + 源文件删除（6 条） |
+| `TextEncoderDetector` | BOM / UTF-16 / GBK 编码检测（4 条） |
+| `ChineseNumber` | 中文数字→阿拉伯数字 0~9999（14 条） |
+
+共 **64 条**，全部通过。
 
 ---
 
