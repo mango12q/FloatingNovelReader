@@ -18,7 +18,8 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
                         <TextBlock Text="字体族" Margin="0,8,0,4"/>
-                        <ComboBox x:Name="FontFamilyCombo" SelectedItem="{Binding Current.Display.FontFamily}"/>
+                        <ComboBox x:Name="FontFamilyCombo" SelectedItem="{Binding Current.Display.FontFamily}"
+                                  ItemsSource="{Binding FontFamilies}"/>
 
                         <TextBlock Text="字体大小" Margin="0,8,0,4"/>
                         <Slider Minimum="12" Maximum="48" TickFrequency="1"
@@ -28,7 +29,8 @@
                         </TextBlock>
 
                         <TextBlock Text="字体颜色" Margin="0,8,0,4"/>
-                        <TextBox Text="{Binding Current.Display.FontColor}"/>
+                        <ComboBox SelectedItem="{Binding Current.Display.FontColorPreset}"
+                                  ItemsSource="{Binding FontColorPresets}"/>
 
                         <CheckBox Content="粗体" IsChecked="{Binding Current.Display.FontBold}" Margin="0,8,0,0"/>
 

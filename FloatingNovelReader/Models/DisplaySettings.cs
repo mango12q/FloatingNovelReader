@@ -8,12 +8,20 @@ namespace FloatingNovelReader.Models;
 public enum BackgroundPreset
 {
     PureWhite,
-    WarmYellow,
-    LightGray,
-    DarkGray,
+    Gray,
     PureBlack,
+    WarmYellow,
     Transparent,
     Custom,
+}
+
+/// <summary>
+/// 字体颜色预设。
+/// </summary>
+public enum FontColorPreset
+{
+    Black,
+    White,
 }
 
 /// <summary>
@@ -28,6 +36,7 @@ public sealed class DisplaySettings
     public double LineHeight { get; set; } = Constants.DefaultLineHeight;
     public BackgroundPreset BackgroundPreset { get; set; } = BackgroundPreset.PureWhite;
     public string? CustomBackgroundColor { get; set; }
+    public FontColorPreset FontColorPreset { get; set; } = FontColorPreset.Black;
     public double Opacity { get; set; } = 0.95;
 
     /// <summary>获取实际显示的背景色（带 #），Transparent 预设返回 "Transparent"。</summary>
@@ -36,10 +45,9 @@ public sealed class DisplaySettings
         return BackgroundPreset switch
         {
             BackgroundPreset.PureWhite => "#FFFFFF",
-            BackgroundPreset.WarmYellow => "#F4ECD8",
-            BackgroundPreset.LightGray => "#E8E8E8",
-            BackgroundPreset.DarkGray => "#3C3C3C",
+            BackgroundPreset.Gray => "#808080",
             BackgroundPreset.PureBlack => "#1A1A1A",
+            BackgroundPreset.WarmYellow => "#F4ECD8",
             BackgroundPreset.Transparent => "Transparent",
             BackgroundPreset.Custom => CustomBackgroundColor ?? "#FFFFFF",
             _ => "#FFFFFF"
@@ -48,16 +56,10 @@ public sealed class DisplaySettings
 
     public string GetEffectiveFontColor()
     {
-        // 如果用户没改过（仍是默认 #333），按背景自动适配
-        if (FontColor != "#333333" && FontColor != "#D0D0D0" && FontColor != "#E0E0E0" && FontColor != "#5C4033")
-            return FontColor;
-
-        return BackgroundPreset switch
-        {
-            BackgroundPreset.DarkGray => "#D0D0D0",
-            BackgroundPreset.PureBlack => "#E0E0E0",
-            BackgroundPreset.Transparent => "#FFFFFF",
-            _ => "#333333"
-        };
+        if (FontColorPreset == FontColorPreset.White)
+            return "#FFFFFF";
+        if (FontColorPreset == FontColorPreset.Black)
+            return "#000000";
+        return "#000000";
     }
 }

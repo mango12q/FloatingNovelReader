@@ -49,7 +49,7 @@ public sealed class BookImportService
         var text = _detector.DecodeFile(filePath, encoding);
 
         // 3. 卷章解析
-        var book = _parser.Parse(text, filePath, fi.Length);
+        var book = _parser.Parse(text, filePath, fi.Length, encoding);
         book.Encoding = encoding.WebName ?? encoding.EncodingName;
 
         // 4. 入库
