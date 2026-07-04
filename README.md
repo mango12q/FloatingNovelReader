@@ -72,8 +72,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `floating-novel-reader-portable.exe` | 单个 EXE，直接双击运行 |
-| `floating-novel-reader-portable-win-x64-*.zip` | 同上 EXE 的 zip 压缩包 |
+| `floating-novel-reader-portable.exe` | 单个 EXE（约 4 MB），直接双击运行 |
+| `floating-novel-reader-portable-win-x64-*.zip` | 同上 EXE 的 zip 压缩包（约 3 MB） |
 
 ### 运行环境
 
@@ -361,8 +361,8 @@ dotnet test
 ```
 publish/
 ├── win-x64-portable/
-│   └── floating-novel-reader-portable.exe   # 单文件 EXE（约 4 MB）
-└── floating-novel-reader-portable-win-x64-*.zip  # zip 压缩包（约 2 MB）
+│   └── floating-novel-reader-portable.exe   # 单文件 EXE（约 4 MB，~4.05 MB 实测）
+└── floating-novel-reader-portable-win-x64-*.zip  # zip 压缩包（约 3 MB，~2.82 MB 实测）
 ```
 
 ---
