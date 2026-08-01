@@ -57,6 +57,7 @@ public sealed partial class ReaderViewModel : ObservableObject
     [ObservableProperty] private double _fontSize = Constants.DefaultFontSize;
     [ObservableProperty] private double _lineHeight = Constants.DefaultLineHeight;
     [ObservableProperty] private FontWeight _fontWeight = FontWeights.Normal;
+    [ObservableProperty] private FontStyle _fontStyle = FontStyles.Normal;
     [ObservableProperty] private double _textAreaWidth = 480;
     [ObservableProperty] private double _textAreaHeight = 600;
     [ObservableProperty] private string _bookTitle = "未加载";
@@ -64,6 +65,9 @@ public sealed partial class ReaderViewModel : ObservableObject
 
     private List<PaginationService.PageRange> _currentPages = new();
     private string _currentChapterText = string.Empty;
+
+    private ChapterListWindow? _chapterListWindow;
+    private BookmarkWindow? _bookmarkWindow;
 
     public ReaderViewModel(
         BookshelfService bookshelf,
@@ -125,7 +129,19 @@ public sealed partial class ReaderViewModel : ObservableObject
                 case HotkeyAction.AutoReadFaster: _autoRead.Faster(); break;
                 case HotkeyAction.AutoReadSlower: _autoRead.Slower(); break;
                 case HotkeyAction.HideWindow:
-                    Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault()?.Hide();
+                    var readerForHide = Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault();
+                    if (readerForHide == null) break;
+                    if (readerForHide.Visibility == Visibility.Visible)
+                    {
+                        readerForHide.Hide();
+                        StatusText = "窗口已隐藏，按 F8 恢复";
+                    }
+                    else
+                    {
+                        readerForHide.Show();
+                        readerForHide.Activate();
+                        StatusText = "窗口已恢复";
+                    }
                     break;
                 case HotkeyAction.ShowChapterList: ShowChapterListCommand.Execute(null); break;
                 case HotkeyAction.ShowBookmarkList: ShowBookmarkListCommand.Execute(null); break;
@@ -154,10 +170,21 @@ public sealed partial class ReaderViewModel : ObservableObject
     public void ShowChapterList()
     {
         if (CurrentBook == null) return;
+
+        if (_chapterListWindow != null && _chapterListWindow.IsVisible)
+        {
+            _chapterListWindow.Close();
+            _chapterListWindow = null;
+            StatusText = "章节目录已关闭";
+            return;
+        }
+
         var w = App.Services.GetRequiredService<ChapterListWindow>();
         if (w.DataContext is ChapterListViewModel cvm)
             cvm.Load(CurrentBook);
         w.Owner = Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault();
+        w.Closed += (s, e) => { _chapterListWindow = null; };
+        _chapterListWindow = w;
         w.ShowDialog();
     }
 
@@ -168,10 +195,21 @@ public sealed partial class ReaderViewModel : ObservableObject
     public void ShowBookmarkList()
     {
         if (CurrentBook == null) return;
+
+        if (_bookmarkWindow != null && _bookmarkWindow.IsVisible)
+        {
+            _bookmarkWindow.Close();
+            _bookmarkWindow = null;
+            StatusText = "书签列表已关闭";
+            return;
+        }
+
         var w = App.Services.GetRequiredService<BookmarkWindow>();
         if (w.DataContext is BookmarkListViewModel bvm)
             bvm.Load(CurrentBook);
         w.Owner = Application.Current?.Windows.OfType<ReaderWindow>().FirstOrDefault();
+        w.Closed += (s, e) => { _bookmarkWindow = null; };
+        _bookmarkWindow = w;
         w.ShowDialog();
     }
 
@@ -235,6 +273,7 @@ public sealed partial class ReaderViewModel : ObservableObject
         {
             var allChapters = CurrentBook?.FlatChapters().ToList();
             if (allChapters == null) return;
+            if (CurrentChapter == null) return;
             var idx = allChapters.FindIndex(c => c.Id == CurrentChapter.Id);
             if (idx > 0)
             {
@@ -358,6 +397,7 @@ public sealed partial class ReaderViewModel : ObservableObject
         FontSize = s.FontSize;
         LineHeight = s.LineHeight;
         FontWeight = s.FontBold ? FontWeights.Bold : FontWeights.Normal;
+        FontStyle = s.FontItalic ? FontStyles.Italic : FontStyles.Normal;
 
         var bg = s.GetEffectiveBackground();
         if (bg == "Transparent")
@@ -386,6 +426,7 @@ public sealed partial class ReaderViewModel : ObservableObject
             ForegroundBrush = Brushes.Black;
         }
         WindowOpacity = s.Opacity;
+        _windowBehavior.SetOpacity(s.Opacity);
 
         _paginator.ClearCache();
         RecomputePagination();

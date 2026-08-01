@@ -70,22 +70,44 @@ public sealed class TrayIconService : IDisposable
 
     public void ShowReader()
     {
-        var w = App.Services.GetRequiredService<ReaderWindow>();
-        w.Show();
-        w.Activate();
+        try
+        {
+            var w = App.Services.GetRequiredService<ReaderWindow>();
+            if (!w.IsInitialized) w.InitializeComponent();
+            w.Show();
+            w.Activate();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "显示阅读窗口失败");
+        }
     }
 
     public void ShowBookshelf()
     {
-        var w = App.Services.GetRequiredService<BookshelfWindow>();
-        w.Show();
-        w.Activate();
+        try
+        {
+            var w = App.Services.GetRequiredService<BookshelfWindow>();
+            w.Show();
+            w.Activate();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "显示书架失败");
+        }
     }
 
     public void ShowSettings()
     {
-        var w = App.Services.GetRequiredService<SettingsWindow>();
-        w.ShowDialog();
+        try
+        {
+            var w = App.Services.GetRequiredService<SettingsWindow>();
+            w.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "显示设置失败");
+        }
     }
 
     public void Exit()

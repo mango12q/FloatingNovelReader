@@ -164,7 +164,6 @@ public sealed class ChapterParser
         };
         volumes.Add(currentVolume);
 
-        Volume? prologueVolume = null; // 序章（首个卷/章之前的部分）
         int volumeNumberCounter = 0;
         int chapterNumberCounter = 0;
         var preVolumeContentLines = new List<int>(); // 第一个卷/章标题之前的行

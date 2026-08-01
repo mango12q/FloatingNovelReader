@@ -25,6 +25,8 @@ public static class SelfInstaller
     private const string Publisher = "mango12q";
     private const string ContactEmail = "mango12q@163.com";
     private const string DownloadUrl = "https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0/runtime";
+    private const string AutoStartRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string AutoStartValueName = "FloatingNovelReader";
 
     private static string InstallDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -148,6 +150,53 @@ public static class SelfInstaller
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
         // 卸载命令：运行自身带 --uninstall 参数
         key.SetValue("UninstallString", $"\"{InstallPath}\" --uninstall");
+    }
+
+    /// <summary>
+    /// 注册/取消开机自启。
+    /// </summary>
+    public static void SetAutoStart(bool enable)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(AutoStartRegistryPath, writable: true);
+            if (key == null) return;
+            if (enable)
+            {
+                if (!IsRunningFromInstallDir())
+                {
+                    Log.Warning("便携模式下无法设置开机自启");
+                    return;
+                }
+                var exePath = InstallPath;
+                key.SetValue(AutoStartValueName, $"\"{exePath}\"", RegistryValueKind.String);
+                Log.Information("开机自启已启用: {Path}", exePath);
+            }
+            else
+            {
+                key.DeleteValue(AutoStartValueName, throwOnMissingValue: false);
+                Log.Information("开机自启已禁用");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "设置开机自启失败");
+        }
+    }
+
+    public static bool IsAutoStartEnabled()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(AutoStartRegistryPath);
+            if (key == null) return false;
+            var val = key.GetValue(AutoStartValueName) as string;
+            return !string.IsNullOrEmpty(val);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

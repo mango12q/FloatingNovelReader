@@ -29,15 +29,55 @@ public partial class BookshelfWindow : Window
     {
         if (_firstLoad) return;
         _firstLoad = true;
-        // 在命名元素完成绑定、VM 已就绪后再触发首次数据加载
         _vm.Refresh();
         BooksList.ItemsSource = _vm.Books;
         UpdateEmptyState();
+
+        if (SystemParameters.HighContrast)
+            Background = SystemColors.WindowBrush;
     }
 
     private void OnImportClick(object sender, RoutedEventArgs e)
     {
         _vm.ImportCommand.Execute(null);
+    }
+
+    private void OnPreviewDragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            e.Effects = DragDropEffects.Copy;
+            DragOverBorder.Visibility = Visibility.Visible;
+            e.Handled = true;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+            DragOverBorder.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private async void OnDrop(object sender, DragEventArgs e)
+    {
+        DragOverBorder.Visibility = Visibility.Collapsed;
+        if (!e.Data.GetDataPresent(System.Windows.Forms.DataFormats.FileDrop)) return;
+        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        var txtFiles = files.Where(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (txtFiles.Length == 0) return;
+
+        foreach (var path in txtFiles)
+        {
+            try
+            {
+                await _vm.ImportFileAsync(path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"导入失败：{path}\n{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        _vm.Refresh();
+        UpdateEmptyState();
     }
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)

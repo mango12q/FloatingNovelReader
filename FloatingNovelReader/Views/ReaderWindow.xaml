@@ -29,29 +29,39 @@
          - 子元素（按钮、文本）Click/Down 时 handled=true 不会冒泡到 Border
          - 空白处/文本处 handled=false 会冒泡到 Border 触发 DragMove
          - 边缘 5px 由 WindowChrome.ResizeBorderThickness 处理为原生 resize -->
-    <Border x:Name="RootBorder" CornerRadius="4" BorderBrush="#33000000" BorderThickness="1" Background="Transparent"
-            MouseLeftButtonDown="OnBorderMouseLeftButtonDown">
+    <Border x:Name="RootBorder" CornerRadius="4" BorderBrush="{StaticResource BorderShadowBrush}" BorderThickness="1" Background="Transparent"
+            MouseLeftButtonDown="OnBorderMouseLeftButtonDown"
+            MouseLeftButtonUp="OnBorderMouseLeftButtonUp"
+            MouseRightButtonUp="OnBorderMouseRightButtonUp"
+            MouseWheel="OnBorderMouseWheel"
+            AutomationProperties.Name="阅读区域"
+            AutomationProperties.HelpText="点击空白处翻到下一页，右键点击上一页，使用鼠标滚轮翻页">
         <Grid x:Name="RootGrid" Margin="0">
             <!-- 文本区: Panel.ZIndex=1 让滚动/选中可正常工作，鼠标事件会 bubble 到 RootBorder 触发拖动 -->
             <Grid Panel.ZIndex="1" Margin="5">
                 <Border x:Name="TextArea" Background="{Binding BackgroundBrush}" CornerRadius="3">
                     <ScrollViewer x:Name="TextScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
-                        <TextBlock x:Name="PageTextView"
-                                   Text="{Binding PageText, Mode=OneWay}"
-                                   FontFamily="{Binding FontFamily}"
-                                   FontSize="{Binding FontSize}"
-                                   FontWeight="{Binding FontWeight}"
-                                   Foreground="{Binding ForegroundBrush}"
-                                   TextWrapping="Wrap"
-                                   Padding="12,8,12,8"
-                                   LineStackingStrategy="BlockLineHeight"/>
+                    <TextBlock x:Name="PageTextView"
+                               Text="{Binding PageText, Mode=OneWay}"
+                               FontFamily="{Binding FontFamily}"
+                               FontSize="{Binding FontSize}"
+                               FontWeight="{Binding FontWeight}"
+                               FontStyle="{Binding FontStyle}"
+                               Foreground="{Binding ForegroundBrush}"
+                               TextWrapping="Wrap"
+                               Padding="12,8,12,8"
+                               LineStackingStrategy="BlockLineHeight"
+                               AutomationProperties.Name="小说正文"
+                               AutomationProperties.HelpText="当前页面阅读文本内容"/>
                     </ScrollViewer>
                 </Border>
             </Grid>
 
             <!-- 顶部悬停控制栏 -->
             <Grid Panel.ZIndex="2" x:Name="TopHitArea" Height="40" VerticalAlignment="Top" Background="Transparent"
-                  MouseEnter="OnTopAreaEnter" MouseLeave="OnTopAreaLeave">
+                  MouseEnter="OnTopAreaEnter" MouseLeave="OnTopAreaLeave"
+                  AutomationProperties.Name="顶部工具栏"
+                  AutomationProperties.HelpText="鼠标悬停显示，包含菜单、设置和关闭按钮">
                 <ctrl:OverlayControlBar x:Name="TopBar" Opacity="0" Margin="5,5,5,0"
                                         SettingsClick="OnSettingsClick" CloseClick="OnCloseClick"
                                         MenuChapterListClick="OnMenuChapterListClick"
@@ -61,7 +71,9 @@
 
             <!-- 底部悬停控制栏 -->
             <Grid Panel.ZIndex="2" x:Name="BottomHitArea" Height="50" VerticalAlignment="Bottom" Background="Transparent"
-                  MouseEnter="OnBottomAreaEnter" MouseLeave="OnBottomAreaLeave">
+                  MouseEnter="OnBottomAreaEnter" MouseLeave="OnBottomAreaLeave"
+                  AutomationProperties.Name="底部工具栏"
+                  AutomationProperties.HelpText="鼠标悬停显示，包含页码和设置选项">
                 <ctrl:OverlayControlBar x:Name="BottomBar" Opacity="0" Margin="5,0,5,5" VerticalAlignment="Bottom"
                                         SettingsClick="OnSettingsClick" CloseClick="OnCloseClick"
                                         MenuChapterListClick="OnMenuChapterListClick"
@@ -72,11 +84,23 @@
             <!-- 状态文本 -->
             <TextBlock Panel.ZIndex="2" x:Name="StatusTextView"
                        Text="{Binding StatusText}"
-                       Foreground="#80FFFFFF"
+                       Foreground="{StaticResource StatusTextBrush}"
                        VerticalAlignment="Bottom" HorizontalAlignment="Center"
                        Margin="0,0,0,12"
                        FontSize="11"
                        IsHitTestVisible="False"/>
+
+            <!-- 阅读进度条 -->
+            <Grid Panel.ZIndex="1" VerticalAlignment="Bottom" Height="4" Margin="0,0,0,0"
+                  x:Name="ProgressBarHost"
+                  AutomationProperties.Name="阅读进度"
+                  AutomationProperties.HelpText="显示当前阅读进度">
+                <Border Background="{StaticResource ProgressBarBackgroundBrush}" Height="4"/>
+                <Border x:Name="ProgressFill"
+                        Background="{StaticResource ProgressBarForegroundBrush}"
+                        HorizontalAlignment="Left"
+                        Height="4"/>
+            </Grid>
         </Grid>
     </Border>
 </Window>

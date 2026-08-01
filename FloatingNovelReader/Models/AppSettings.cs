@@ -8,12 +8,20 @@ public enum StartupBehavior
     Bookshelf,
 }
 
+public enum HotkeyMode
+{
+    GlobalAlways,
+    GlobalWhenReaderActive,
+}
+
 /// <summary>
 /// 全局应用设置。序列化到 settings.json。
 /// </summary>
 public sealed class AppSettings
 {
     public StartupBehavior StartupBehavior { get; set; } = StartupBehavior.LastReadingPosition;
+    public HotkeyMode HotkeyMode { get; set; } = HotkeyMode.GlobalAlways;
+    public bool AutoStart { get; set; }
 
     public HotkeyConfig Hotkeys { get; set; } = new();
     public DisplaySettings Display { get; set; } = new();

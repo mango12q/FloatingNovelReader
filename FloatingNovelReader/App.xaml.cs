@@ -114,6 +114,7 @@ public partial class App : Application
         // 7. 启动全局热键（必须在创建窗口之前，让所有窗口都能立即收到热键事件）
         var hotkey = Services.GetRequiredService<Core.HotkeyManager>();
         hotkey.SetGlobalBindings(Services.GetRequiredService<SettingsService>().Current.Hotkeys.GlobalHotkeys);
+        hotkey.Mode = Services.GetRequiredService<SettingsService>().Current.HotkeyMode;
         hotkey.Start();
 
         // 桥接：HotkeyManager → IEventAggregator → ReaderViewModel
@@ -127,6 +128,7 @@ public partial class App : Application
         settings.SettingsChanged += (s, args) =>
         {
             hotkey.SetGlobalBindings(settings.Current.Hotkeys.GlobalHotkeys);
+            hotkey.Mode = settings.Current.HotkeyMode;
             Log.Information("热键绑定已重新加载");
         };
 
