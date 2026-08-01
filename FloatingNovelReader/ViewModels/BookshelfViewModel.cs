@@ -45,7 +45,7 @@ public sealed partial class BookshelfViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async void Import()
+    public async Task ImportAsync()
     {
         var dlg = new OpenFileDialog
         {
@@ -67,6 +67,11 @@ public sealed partial class BookshelfViewModel : ObservableObject
             }
         }
         Refresh();
+    }
+
+    public async System.Threading.Tasks.Task ImportFileAsync(string path)
+    {
+        await _importer.ImportAsync(path);
     }
 
     [RelayCommand]

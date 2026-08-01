@@ -52,7 +52,7 @@ public static class Constants
 
     // 防抖
     public const int HotkeyDebounceMs = 150;
-    public const int ProgressSaveDebounceMs = 2000;
+    public const int ProgressSaveDebounceMs = 500;
 
     // 数据库
     public const string BooksTable = "Books";

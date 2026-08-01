@@ -10,7 +10,7 @@ namespace FloatingNovelReader.Helpers;
 /// </summary>
 public static class JsonHelper
 {
-    private static readonly JsonSerializerOptions Options = new()
+    public static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

@@ -66,7 +66,7 @@ public static class Bootstrapper
         services.AddTransient<BookmarkListViewModel>();
 
         services.AddSingleton<ReaderWindow>();
-        services.AddSingleton<BookshelfWindow>();
+        services.AddTransient<BookshelfWindow>();
         services.AddTransient<SettingsWindow>();
         services.AddTransient<ChapterListWindow>();
         services.AddTransient<BookmarkWindow>();

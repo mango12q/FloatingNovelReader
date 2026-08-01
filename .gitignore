@@ -41,4 +41,4 @@ desktop.ini
 !.gitignore
 !.editorconfig
 !.vscode/
-!.workbuddy/   # 系统工作记忆（重要：包含项目规则与用户偏好）
+

@@ -3,9 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms; // for ColorDialog
+using System.Windows.Input;
+using System.Windows.Media;
 using FloatingNovelReader;
 using FloatingNovelReader.ViewModels;
 using FloatingNovelReader.Models;
+using FloatingNovelReader.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FloatingNovelReader.Views;
 
@@ -29,11 +34,21 @@ public partial class SettingsWindow : Window
         else
             FontFamilyCombo.SelectedItem = _vm.Current.Display.FontFamily;
 
-        // 填充快捷键列表
+        UpdateCustomColorPanelVisibility();
+        BackgroundCombo.SelectionChanged += (s, e) => UpdateCustomColorPanelVisibility();
+
         var list = new List<HotkeyItem>();
         foreach (var kv in _vm.Current.Hotkeys.GlobalHotkeys)
             list.Add(new HotkeyItem(kv.Key, kv.Value, DisplayNameOf(kv.Key)));
         HotkeyList.ItemsSource = list;
+
+        ApplyHighContrast();
+    }
+
+    private void ApplyHighContrast()
+    {
+        if (SystemParameters.HighContrast)
+            Background = SystemColors.WindowBrush;
     }
 
     private static string DisplayNameOf(string action) => action switch
@@ -57,9 +72,36 @@ public partial class SettingsWindow : Window
         _ => action
     };
 
+    private void UpdateCustomColorPanelVisibility()
+    {
+        if (BackgroundCombo == null || CustomColorPanel == null) return;
+        var isCustom = _vm.Current.Display.BackgroundPreset == Models.BackgroundPreset.Custom;
+        CustomColorPanel.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnPickCustomColor(object sender, RoutedEventArgs e)
+    {
+        using var dlg = new System.Windows.Forms.ColorDialog();
+        if (!string.IsNullOrEmpty(_vm.Current.Display.CustomBackgroundColor))
+        {
+            try
+            {
+                var c = (Color)ColorConverter.ConvertFromString(_vm.Current.Display.CustomBackgroundColor);
+                dlg.Color = System.Drawing.Color.FromArgb(c.A, c.R, c.G, c.B);
+            }
+            catch { }
+        }
+        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            var c = dlg.Color;
+            _vm.Current.Display.CustomBackgroundColor = $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
+            _vm.Current.Display.BackgroundPreset = Models.BackgroundPreset.Custom;
+            CustomColorHex.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
+        }
+    }
+
     private void OnSave(object sender, RoutedEventArgs e)
     {
-        // 回写快捷键
         var list = (List<HotkeyItem>)HotkeyList.ItemsSource;
         _vm.Current.Hotkeys.GlobalHotkeys.Clear();
         foreach (var item in list)
@@ -74,6 +116,82 @@ public partial class SettingsWindow : Window
         _vm.Cancel();
         DialogResult = false;
         Close();
+    }
+
+    private void OnReset(object sender, RoutedEventArgs e)
+    {
+        _vm.ResetToDefaultCommand.Execute(null);
+    }
+
+    private void OnExport(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var settingsSvc = App.Services.GetRequiredService<SettingsService>();
+            var suggestedDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                "FloatingNovelReader_Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            var result = settingsSvc.ExportSettings(suggestedDir);
+            System.Windows.MessageBox.Show(
+                $"设置已导出到：\n{suggestedDir}\n\n包含：settings.json + library.db",
+                "导出设置成功",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"导出设置失败：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    private void OnImport(object sender, RoutedEventArgs e)
+    {
+        var confirm = System.Windows.MessageBox.Show(
+            "导入设置将覆盖当前所有设置（显示、快捷键、自动阅读等）。\n\n确定要导入吗？",
+            "导入设置确认",
+            System.Windows.MessageBoxButton.OKCancel,
+            System.Windows.MessageBoxImage.Question);
+        if (confirm != System.Windows.MessageBoxResult.OK) return;
+
+        try
+        {
+            var dlg = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "选择包含 settings.json 的设置备份文件夹",
+                UseDescriptionForTitle = true,
+            };
+            if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
+            var settingsSvc = App.Services.GetRequiredService<SettingsService>();
+            settingsSvc.ImportSettings(dlg.SelectedPath);
+            _vm.Current = settingsSvc.Current;
+            _vm.AutoReadIntervalSec = settingsSvc.Current.AutoReadIntervalSec;
+
+            System.Windows.MessageBox.Show("设置已成功导入！", "导入完成", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"导入设置失败：{ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    private void OnNumberOnly(object sender, TextCompositionEventArgs e)
+    {
+        e.Handled = !int.TryParse(e.Text, out _);
+    }
+
+    private void OnPasteNumberOnly(object sender, DataObjectPastingEventArgs e)
+    {
+        if (e.DataObject.GetDataPresent(System.Windows.Forms.DataFormats.Text))
+        {
+            var text = e.DataObject.GetData(System.Windows.Forms.DataFormats.Text) as string;
+            if (!int.TryParse(text, out _))
+                e.CancelCommand();
+        }
+        else
+        {
+            e.CancelCommand();
+        }
     }
 
     public class HotkeyItem

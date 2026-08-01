@@ -4,7 +4,12 @@
         Title="我的书架"
         Width="900" Height="600"
         WindowStartupLocation="CenterScreen"
-        Background="#F5F5F5">
+        Background="{StaticResource BookshelfBackgroundBrush}"
+        AllowDrop="True"
+        Drop="OnDrop"
+        PreviewDragOver="OnPreviewDragOver"
+        AutomationProperties.Name="我的书架"
+        AutomationProperties.HelpText="管理您的电子书库，可导入、搜索、打开书籍">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -17,21 +22,31 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
                 <ComboBox x:Name="SortCombo" Width="120" Margin="6,0"
                           SelectionChanged="OnSortChanged"
-                          SelectedIndex="0">
+                          SelectedIndex="0"
+                          AutomationProperties.Name="排序方式"
+                          AutomationProperties.HelpText="选择书籍排序方式">
                     <ComboBoxItem Content="最近阅读"/>
                     <ComboBoxItem Content="导入时间"/>
                     <ComboBoxItem Content="书名"/>
                 </ComboBox>
                 <TextBox x:Name="SearchBox" Width="180" Margin="6,0" Padding="6,3"
-                         TextChanged="OnSearchChanged" Tag="搜索书名..."/>
-                <Button Content="导入" Padding="12,4" Margin="6,0" Click="OnImportClick"/>
-                <Button Content="设置" Padding="12,4" Margin="6,0" Click="OnSettingsClick"/>
+                         TextChanged="OnSearchChanged" Tag="搜索书名..."
+                         AutomationProperties.Name="搜索框"
+                         AutomationProperties.HelpText="输入书名关键词进行搜索"/>
+                <Button Content="导入" Padding="12,4" Margin="6,0" Click="OnImportClick"
+                        AutomationProperties.Name="导入按钮"
+                        AutomationProperties.HelpText="导入 TXT 格式电子书"/>
+                <Button Content="设置" Padding="12,4" Margin="6,0" Click="OnSettingsClick"
+                        AutomationProperties.Name="设置按钮"
+                        AutomationProperties.HelpText="打开应用设置"/>
             </StackPanel>
         </DockPanel>
 
         <!-- 书籍网格 -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="BooksList">
+            <ItemsControl x:Name="BooksList"
+                          AutomationProperties.Name="书籍列表"
+                          AutomationProperties.HelpText="已导入的书籍列表，双击打开阅读">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal"/>
@@ -41,7 +56,9 @@
                     <DataTemplate>
                         <Border Style="{StaticResource BookCard}" Cursor="Hand"
                                 MouseLeftButtonUp="OnBookClick" MouseRightButtonUp="OnBookRightClick"
-                                Tag="{Binding}">
+                                Tag="{Binding}"
+                                AutomationProperties.Name="{Binding Title}"
+                                AutomationProperties.HelpText="双击打开阅读，右键查看更多操作">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
@@ -70,6 +87,12 @@
         <TextBlock x:Name="EmptyHint" Grid.Row="1" Text="📖 书架空空的，点击右上角「导入」添加你的第一本书吧"
                    FontSize="14" Foreground="Gray"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Visibility="Collapsed"/>
+                   Visibility="Collapsed"
+                   AutomationProperties.Name="空书架提示"
+                   AutomationProperties.HelpText="提示用户尚未导入任何书籍"/>
+
+        <!-- 拖放高亮边框（最上层） -->
+        <Border x:Name="DragOverBorder" Grid.RowSpan="2" BorderBrush="{StaticResource AccentBrush}" BorderThickness="2"
+                 CornerRadius="4" Background="{StaticResource AccentLightBrush}" Visibility="Collapsed" IsHitTestVisible="False"/>
     </Grid>
 </Window>

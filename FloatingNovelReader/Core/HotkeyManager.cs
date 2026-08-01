@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Input;
+using System.Windows.Interop;
 using Gma.System.MouseKeyHook;
 using Serilog;
+using FloatingNovelReader.Models;
 
 namespace FloatingNovelReader.Core;
 
@@ -98,6 +101,8 @@ public sealed class HotkeyManager : IDisposable
         get => _isAutoReadMode;
         set => _isAutoReadMode = value;
     }
+
+    public HotkeyMode Mode { get; set; } = HotkeyMode.GlobalAlways;
 
     /// <summary>
     /// 在录制快捷键期间临时屏蔽全局触发。
@@ -210,6 +215,10 @@ public sealed class HotkeyManager : IDisposable
         var mods = System.Windows.Input.Keyboard.Modifiers;
         var gesture = new KeyGestureLite(wpfKey, mods);
 
+        // HotkeyMode = GlobalWhenReaderActive 时，无修饰键且前台窗口不是本进程则忽略
+        if (Mode == HotkeyMode.GlobalWhenReaderActive && mods == ModifierKeys.None && !IsForegroundOurProcess())
+            return;
+
         HotkeyAction? action = null;
 
         // 模式层优先
@@ -247,4 +256,25 @@ public sealed class HotkeyManager : IDisposable
     private void OnKeyUp(object? sender, System.Windows.Forms.KeyEventArgs e) { /* no-op */ }
 
     public void Dispose() => Stop();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    private static bool IsForegroundOurProcess()
+    {
+        try
+        {
+            var fg = GetForegroundWindow();
+            if (fg == IntPtr.Zero) return false;
+            GetWindowThreadProcessId(fg, out var pid);
+            return pid == (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

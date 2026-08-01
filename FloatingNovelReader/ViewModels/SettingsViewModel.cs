@@ -32,23 +32,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _current = settings.Current;
         _autoReadIntervalSec = Current.AutoReadIntervalSec;
 
-        // 只保留指定的字体族：黑体、宋体、楷体
-        var allowedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "SimHei", "黑体", "MS黑体",
-            "SimSun", "宋体",
-            "KaiTi", "楷体"
-        };
         foreach (var f in _fontHelper.GetChineseFontFamilies())
-        {
-            if (allowedFonts.Contains(f) || allowedFonts.Any(a => f.Contains(a, StringComparison.OrdinalIgnoreCase)))
-                FontFamilies.Add(f);
-        }
-        if (FontFamilies.Count == 0)
-        {
-            foreach (var f in _fontHelper.GetChineseFontFamilies())
-                FontFamilies.Add(f);
-        }
+            FontFamilies.Add(f);
     }
 
     [RelayCommand]
@@ -63,5 +48,20 @@ public sealed partial class SettingsViewModel : ObservableObject
     public void Cancel()
     {
         _settings.Reload();
+    }
+
+    [RelayCommand]
+    public void ResetToDefault()
+    {
+        var result = System.Windows.MessageBox.Show(
+            "确定要将所有设置恢复为默认值吗？\n\n这将重置显示、快捷键、自动阅读等所有设置。",
+            "恢复默认设置",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
+        _settings.Reset();
+        Current = _settings.Current;
+        AutoReadIntervalSec = Current.AutoReadIntervalSec;
     }
 }

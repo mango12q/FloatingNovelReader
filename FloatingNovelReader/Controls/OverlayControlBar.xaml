@@ -12,6 +12,8 @@
                 <Button x:Name="MenuBtn" Content="≡" FontSize="16"
                         Foreground="White" Background="Transparent" BorderThickness="0"
                         Padding="8,2" Margin="2,0" Cursor="Hand" ToolTip="菜单"
+                        AutomationProperties.Name="菜单按钮"
+                        AutomationProperties.HelpText="打开章节目录和书签列表"
                         Click="OnMenuClick">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -22,10 +24,10 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarHoverBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarPressedBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -49,6 +51,8 @@
                 <Button x:Name="SettingsBtn" Content="⚙" FontSize="16"
                         Foreground="White" Background="Transparent" BorderThickness="0"
                         Padding="10,2" Margin="2,0" Cursor="Hand" ToolTip="设置"
+                        AutomationProperties.Name="设置按钮"
+                        AutomationProperties.HelpText="打开阅读器设置"
                         Click="OnSettingsClick">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -59,10 +63,10 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarHoverBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarPressedBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -71,6 +75,8 @@
                 <Button x:Name="CloseBtn" Content="×" FontSize="16"
                         Foreground="White" Background="Transparent" BorderThickness="0"
                         Padding="10,2" Margin="2,0" Cursor="Hand" ToolTip="关闭"
+                        AutomationProperties.Name="关闭按钮"
+                        AutomationProperties.HelpText="关闭阅读窗口"
                         Click="OnCloseClick">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -81,10 +87,10 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarHoverBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarPressedBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

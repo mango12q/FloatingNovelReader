@@ -6,6 +6,19 @@
     <conv:OpacityToPercentConverter x:Key="OpacityToPercent" />
     <conv:ColorToBrushConverter x:Key="ColorToBrush" />
 
+    <!-- 颜色资源 -->
+    <SolidColorBrush x:Key="BorderShadowBrush" Color="#33000000"/>
+    <SolidColorBrush x:Key="BookshelfBackgroundBrush" Color="#F5F5F5"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="AccentLightBrush" Color="#E5F3FF"/>
+    <SolidColorBrush x:Key="ControlBarHoverBrush" Color="#33FFFFFF"/>
+    <SolidColorBrush x:Key="ControlBarPressedBrush" Color="#55FFFFFF"/>
+    <SolidColorBrush x:Key="StatusTextBrush" Color="#80FFFFFF"/>
+
+    <!-- 进度条 -->
+    <SolidColorBrush x:Key="ProgressBarBackgroundBrush" Color="#20000000"/>
+    <SolidColorBrush x:Key="ProgressBarForegroundBrush" Color="#66FFFFFF"/>
+
     <!-- 通用按钮样式 -->
     <Style x:Key="IconButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
@@ -24,10 +37,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarHoverBrush}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ControlBarPressedBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -37,7 +50,7 @@
 
     <!-- 卡片样式（书架） -->
     <Style x:Key="BookCard" TargetType="Border">
-        <Setter Property="Background" Value="White"/>
+        <Setter Property="Background" Value="{StaticResource BookshelfBackgroundBrush}"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="Margin" Value="8"/>
         <Setter Property="Width" Value="150"/>

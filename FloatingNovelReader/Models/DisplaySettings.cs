@@ -33,6 +33,7 @@ public sealed class DisplaySettings
     public int FontSize { get; set; } = Constants.DefaultFontSize;
     public string FontColor { get; set; } = "#333333";
     public bool FontBold { get; set; }
+    public bool FontItalic { get; set; }
     public double LineHeight { get; set; } = Constants.DefaultLineHeight;
     public BackgroundPreset BackgroundPreset { get; set; } = BackgroundPreset.PureWhite;
     public string? CustomBackgroundColor { get; set; }

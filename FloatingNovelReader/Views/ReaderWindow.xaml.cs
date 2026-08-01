@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using FloatingNovelReader;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
@@ -12,15 +13,15 @@ using Serilog;
 
 namespace FloatingNovelReader.Views;
 
-/// <summary>
-/// 阅读窗口 View。只负责 UI 生命周期事件、窗口交互（拖动/缩放/控制栏动画）
-/// 和控件事件路由。所有业务逻辑（热键分发、翻页、章节跳转等）均在 ReaderViewModel 中处理。
-/// </summary>
 public partial class ReaderWindow : Window
 {
     private readonly ReaderViewModel _vm;
     private readonly WindowBehaviorService _windowBehavior;
+    private Point _dragStart;
     private bool _isDragging;
+    private const double DragThreshold = 5.0;
+    private readonly DispatcherTimer _idleCursorTimer;
+    private bool _isFadingPage;
 
     public ReaderWindow(ReaderViewModel vm, WindowBehaviorService windowBehavior)
     {
@@ -34,6 +35,29 @@ public partial class ReaderWindow : Window
 
         Loaded += OnLoaded;
         Closing += OnClosing;
+
+        _vm.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ReaderViewModel.PageText) && !_isFadingPage && IsLoaded)
+                AnimatePageTextFade();
+            if (e.PropertyName == nameof(ReaderViewModel.ReadingPercent) && IsLoaded)
+                UpdateProgressBarWidth();
+        };
+
+        _idleCursorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _idleCursorTimer.Tick += (s, e) =>
+        {
+            _idleCursorTimer.Stop();
+            if (_windowBehavior.ClickThrough != ClickThroughState.ClickThrough && IsMouseOver)
+                Mouse.OverrideCursor = Cursors.None;
+        };
+
+        MouseMove += (s, e) =>
+        {
+            Mouse.OverrideCursor = null;
+            _idleCursorTimer.Stop();
+            _idleCursorTimer.Start();
+        };
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -42,7 +66,6 @@ public partial class ReaderWindow : Window
         TopBar.SetInfo(_vm.BookTitle, _vm.ChapterTitle);
         BottomBar.SetInfo($"{_vm.CurrentPage + 1}/{_vm.TotalPages}", "");
 
-        // 从 ReadingProgress 恢复窗口位置 / 大小
         if (_vm.CurrentBook != null)
         {
             var p = App.Services.GetRequiredService<DatabaseService>().GetProgress(_vm.CurrentBook.Id);
@@ -58,6 +81,30 @@ public partial class ReaderWindow : Window
                 if (p.Opacity > 0) Opacity = p.Opacity;
             }
         }
+
+        ApplyHighContrast();
+
+        if (_windowBehavior.ClickThrough != ClickThroughState.ClickThrough)
+            _idleCursorTimer.Start();
+    }
+
+    private void ApplyHighContrast()
+    {
+        if (SystemParameters.HighContrast)
+        {
+            TextArea.Background = SystemColors.WindowBrush;
+            ProgressFill.Background = SystemColors.HighlightBrush;
+        }
+        UpdateProgressBarWidth();
+    }
+
+    private void UpdateProgressBarWidth()
+    {
+        if (!IsLoaded || ProgressBarHost == null) return;
+        var pct = _vm.ReadingPercent;
+        var w = ProgressBarHost.ActualWidth * Math.Max(0, Math.Min(1, pct));
+        if (w < 1 && pct > 0) w = 1;
+        ProgressFill.Width = w;
     }
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -73,28 +120,49 @@ public partial class ReaderWindow : Window
         Hide();
     }
 
-    // ── 窗口拖动（View 层 UI 行为）───────────────────────────────
-    // RootBorder 的 MouseLeftButtonDown（Bubble 阶段）：
-    //   - 按钮（⚙/×）的 OnMouseLeftButtonDown 会 raise Click 然后 handled=true
-    //     → 不会冒泡到 Border → 不拖动
-    //   - 文本区、空白区没 handled → 冒泡到 Border 触发拖动
-    //   - 边缘 5px 走 WindowChrome.ResizeBorderThickness 由 WPF 处理为原生 resize
     private void OnBorderMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left) return;
         if (e.Handled) return;
         if (_isDragging) return;
         _isDragging = true;
+        _dragStart = e.GetPosition(this);
         try
         {
             DragMove();
             _windowBehavior.ApplyEdgeSnap(new Point(Left, Top));
         }
-        catch { /* DragMove 在鼠标释放前会抛 InvalidOperation */ }
+        catch { }
         finally { _isDragging = false; }
     }
 
-    // ── 控制栏显示 / 隐藏动画（纯 UI 逻辑，保留在 View 层）─────────
+    private void OnBorderMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left) return;
+        if (_windowBehavior.ClickThrough == ClickThroughState.ClickThrough) return;
+        var end = e.GetPosition(this);
+        if (Math.Abs(end.X - _dragStart.X) > DragThreshold || Math.Abs(end.Y - _dragStart.Y) > DragThreshold)
+            return;
+        _vm.NextPageCommand.Execute(null);
+    }
+
+    private void OnBorderMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_windowBehavior.ClickThrough == ClickThroughState.ClickThrough) return;
+        _vm.PrevPageCommand.Execute(null);
+        e.Handled = true;
+    }
+
+    private void OnBorderMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (_windowBehavior.ClickThrough == ClickThroughState.ClickThrough) return;
+        if (e.Delta > 0)
+            _vm.PrevPageCommand.Execute(null);
+        else if (e.Delta < 0)
+            _vm.NextPageCommand.Execute(null);
+        e.Handled = true;
+    }
+
     private void OnTopAreaEnter(object sender, MouseEventArgs e)
     {
         ShowBar(TopBar);
@@ -125,7 +193,20 @@ public partial class ReaderWindow : Window
         timer.Start();
     }
 
-    // ── 控制栏按钮事件（纯 UI 路由）───────────────────────────────
+    private void AnimatePageTextFade()
+    {
+        _isFadingPage = true;
+        var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
+        fadeOut.Completed += (s, e) =>
+        {
+            PageTextView.Opacity = 0;
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150));
+            PageTextView.BeginAnimation(OpacityProperty, fadeIn);
+            fadeIn.Completed += (s2, e2) => { PageTextView.Opacity = 1; _isFadingPage = false; };
+        };
+        PageTextView.BeginAnimation(OpacityProperty, fadeOut);
+    }
+
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
         var w = App.Services.GetRequiredService<SettingsWindow>();
