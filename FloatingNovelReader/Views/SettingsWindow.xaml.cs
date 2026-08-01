@@ -28,15 +28,6 @@ public partial class SettingsWindow : Window
 
     private void OnLoadedInternal(object sender, RoutedEventArgs e)
     {
-        FontFamilyCombo.ItemsSource = _vm.FontFamilies;
-        if (!_vm.FontFamilies.Contains(_vm.Current.Display.FontFamily) && _vm.FontFamilies.Count > 0)
-            FontFamilyCombo.SelectedIndex = 0;
-        else
-            FontFamilyCombo.SelectedItem = _vm.Current.Display.FontFamily;
-
-        UpdateCustomColorPanelVisibility();
-        BackgroundCombo.SelectionChanged += (s, e) => UpdateCustomColorPanelVisibility();
-
         var list = new List<HotkeyItem>();
         foreach (var kv in _vm.Current.Hotkeys.GlobalHotkeys)
             list.Add(new HotkeyItem(kv.Key, kv.Value, DisplayNameOf(kv.Key)));
@@ -71,34 +62,6 @@ public partial class SettingsWindow : Window
         "TogglePause" => "暂停",
         _ => action
     };
-
-    private void UpdateCustomColorPanelVisibility()
-    {
-        if (BackgroundCombo == null || CustomColorPanel == null) return;
-        var isCustom = _vm.Current.Display.BackgroundPreset == Models.BackgroundPreset.Custom;
-        CustomColorPanel.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void OnPickCustomColor(object sender, RoutedEventArgs e)
-    {
-        using var dlg = new System.Windows.Forms.ColorDialog();
-        if (!string.IsNullOrEmpty(_vm.Current.Display.CustomBackgroundColor))
-        {
-            try
-            {
-                var c = (Color)ColorConverter.ConvertFromString(_vm.Current.Display.CustomBackgroundColor);
-                dlg.Color = System.Drawing.Color.FromArgb(c.A, c.R, c.G, c.B);
-            }
-            catch { }
-        }
-        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-        {
-            var c = dlg.Color;
-            _vm.Current.Display.CustomBackgroundColor = $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
-            _vm.Current.Display.BackgroundPreset = Models.BackgroundPreset.Custom;
-            CustomColorHex.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
-        }
-    }
 
     private void OnSave(object sender, RoutedEventArgs e)
     {

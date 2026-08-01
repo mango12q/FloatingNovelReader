@@ -35,6 +35,7 @@
                     <Button.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="章节目录" Click="OnMenuChapterList"/>
+                            <MenuItem Header="添加书签" Click="OnMenuAddBookmark"/>
                             <MenuItem Header="书签列表" Click="OnMenuBookmarkList"/>
                             <Separator/>
                             <MenuItem Header="设置..." Click="OnMenuSettings"/>

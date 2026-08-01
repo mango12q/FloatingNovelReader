@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FloatingNovelReader.Models;
@@ -16,8 +17,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private AppSettings _current;
     [ObservableProperty] private int _autoReadIntervalSec;
 
-    public ObservableCollection<string> FontFamilies { get; } = new();
-    public Array BackgroundPresets { get; } = Enum.GetValues<BackgroundPreset>();
+    public ObservableCollection<Helpers.FontOption> FontFamilies { get; } = new();
+    public Array BackgroundPresets { get; } = Enum.GetValues<BackgroundPreset>()
+        .Where(p => (BackgroundPreset)p != BackgroundPreset.Custom).ToArray();
     public Array FontColorPresets { get; } = Enum.GetValues<FontColorPreset>();
     public Array StartupOptions { get; } = Enum.GetValues<StartupBehavior>();
     public Array HotkeyModeOptions { get; } = Enum.GetValues<HotkeyMode>();
@@ -33,7 +35,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _current = settings.Current;
         _autoReadIntervalSec = Current.AutoReadIntervalSec;
 
-        foreach (var f in _fontHelper.GetFontFamiliesForPicker())
+        foreach (var f in _fontHelper.GetFontOptionsForPicker())
             FontFamilies.Add(f);
     }
 

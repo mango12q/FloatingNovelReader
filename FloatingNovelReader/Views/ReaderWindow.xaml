@@ -31,11 +31,10 @@
          - 边缘 5px 由 WindowChrome.ResizeBorderThickness 处理为原生 resize -->
     <Border x:Name="RootBorder" CornerRadius="4" BorderBrush="{StaticResource BorderShadowBrush}" BorderThickness="1" Background="Transparent"
             MouseLeftButtonDown="OnBorderMouseLeftButtonDown"
-            MouseLeftButtonUp="OnBorderMouseLeftButtonUp"
             MouseRightButtonUp="OnBorderMouseRightButtonUp"
             MouseWheel="OnBorderMouseWheel"
             AutomationProperties.Name="阅读区域"
-            AutomationProperties.HelpText="点击空白处翻到下一页，右键点击上一页，使用鼠标滚轮翻页">
+            AutomationProperties.HelpText="按住左键拖动窗口，右键点击上一页，使用鼠标滚轮翻页">
         <Grid x:Name="RootGrid" Margin="0">
             <!-- 文本区: Panel.ZIndex=1 让滚动/选中可正常工作，鼠标事件会 bubble 到 RootBorder 触发拖动 -->
             <Grid Panel.ZIndex="1" Margin="5">
@@ -66,6 +65,7 @@
                 <ctrl:OverlayControlBar x:Name="TopBar" Opacity="0" Margin="5,5,5,0"
                                         SettingsClick="OnSettingsClick" CloseClick="OnCloseClick"
                                         MenuChapterListClick="OnMenuChapterListClick"
+                                        MenuAddBookmarkClick="OnMenuAddBookmarkClick"
                                         MenuBookmarkListClick="OnMenuBookmarkListClick"
                                         MenuSettingsClick="OnSettingsClick"/>
             </Grid>
@@ -78,6 +78,7 @@
                 <ctrl:OverlayControlBar x:Name="BottomBar" Opacity="0" Margin="5,0,5,5" VerticalAlignment="Bottom"
                                         SettingsClick="OnSettingsClick" CloseClick="OnCloseClick"
                                         MenuChapterListClick="OnMenuChapterListClick"
+                                        MenuAddBookmarkClick="OnMenuAddBookmarkClick"
                                         MenuBookmarkListClick="OnMenuBookmarkListClick"
                                         MenuSettingsClick="OnSettingsClick"/>
             </Grid>
