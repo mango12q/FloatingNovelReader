@@ -10,8 +10,8 @@
 
 <p align="center">
   <a href="#-下载安装"><img src="https://img.shields.io/badge/下载-Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download"></a>
-  <a href="#-使用说明"><img src="https://img.shields.io/badge/平台-Windows%2010%2F11-blue?style=for-the-badge&logo=windows" alt="Platform"></a>
-  <a href="#-使用说明"><img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET"></a>
+  <a href="#-快速开始"><img src="https://img.shields.io/badge/平台-Windows%2010%2F11-blue?style=for-the-badge&logo=windows" alt="Platform"></a>
+  <a href="#-快速开始"><img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-MIT-green?style=for-the-badge" alt="License"></a>
 </p>
 
@@ -128,25 +128,7 @@
 
 鼠标操作：按住左键拖动 = 移动窗口，右键点击 = 上一页，滚轮 = 上/下翻页。
 
-### 默认快捷键速查
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Space` | 下一页 |
-| `Backspace` | 上一页 |
-| `PageDown` / `PageUp` | 下一章 / 上一章 |
-| `F3` | 切换鼠标穿透 |
-| `F4` | 切换窗口置顶 |
-| `F5` | 开始 / 暂停自动阅读 |
-| `F6` / `F7` | 自动阅读加速 / 减速 |
-| `F8` | Boss Key（一键隐藏） |
-| `F9` | 章节目录 |
-| `F10` | 添加书签 |
-| `F11` | 暂停全局快捷键（预留，暂未生效） |
-| `F12` | 书签列表 |
-| 小键盘 `+` / `-` | 增加 / 降低透明度 |
-
-> 所有快捷键都可在 **设置 → 快捷键** 中改键或清空。
+快捷键：默认 `Space` 下一页、`F3` 穿透、`F8` 隐藏窗口；完整键位与自定义改键见应用内 **设置 → 快捷键**（功能说明见 [全局快捷键](#-全局快捷键)）。
 
 ---
 
