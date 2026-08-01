@@ -1,8 +1,5 @@
 using System;
-using FloatingNovelReader.ApplicationServices;
 using FloatingNovelReader.Helpers;
-using FloatingNovelReader.Infrastructure;
-using FloatingNovelReader.Infrastructure.Repositories;
 using FloatingNovelReader.Services;
 using FloatingNovelReader.ViewModels;
 using FloatingNovelReader.Views;
@@ -22,32 +19,19 @@ public static class Bootstrapper
 
         // ── 基础设施 ──────────────────────────────────────
         services.AddSingleton<HotkeyManager>();
-        services.AddSingleton<EventBus>(EventBus.Default);
 
-        // 强类型事件聚合器（兼容层：空接口标记）
+        // 强类型事件聚合器（空接口标记作类型约束）
         services.AddSingleton<IEventAggregator<IEventMarker>>(sp =>
             new EventAggregator<IEventMarker>());
 
-        // 数据库连接工厂（抽象层）
-        var connString = $"Data Source={Constants.DbFile}";
-        services.AddSingleton<IDbConnectionFactory>(new SqliteConnectionFactory(connString));
-
-        // ── Repository 层（新引入）────────────────────────
-        services.AddSingleton<IBookRepository, SqliteBookRepository>();
-        services.AddSingleton<IChapterRepository, SqliteChapterRepository>();
-        services.AddSingleton<IBookmarkRepository, SqliteBookmarkRepository>();
-        services.AddSingleton<IReadingProgressRepository, SqliteReadingProgressRepository>();
-
-        // ── 数据访问（旧 DatabaseService 保持兼容）─────────
+        // ── 数据访问 ─────────────────────────────────────
         services.AddSingleton<DatabaseService>();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<ReadingSessionService>();
         services.AddSingleton<BookmarkService>();
         services.AddSingleton<BookshelfService>();
 
-        // ── 应用服务（新引入）────────────────────────────
-        services.AddSingleton<IBookService, BookService>();
-
+        // ── 业务服务 ─────────────────────────────────────
         services.AddSingleton<BookImportService>();
         services.AddSingleton<PaginationService>();
         services.AddSingleton<AutoReadService>();

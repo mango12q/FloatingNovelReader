@@ -54,8 +54,12 @@ public sealed partial class ReaderViewModel : ObservableObject
     [ObservableProperty] private Brush? _backgroundBrush;
     [ObservableProperty] private Brush? _foregroundBrush;
     [ObservableProperty] private FontFamily? _fontFamily;
-    [ObservableProperty] private double _fontSize = Constants.DefaultFontSize;
-    [ObservableProperty] private double _lineHeight = Constants.DefaultLineHeight;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LineHeightPixels))]
+    private double _fontSize = Constants.DefaultFontSize;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LineHeightPixels))]
+    private double _lineHeight = Constants.DefaultLineHeight;
     [ObservableProperty] private FontWeight _fontWeight = FontWeights.Normal;
     [ObservableProperty] private FontStyle _fontStyle = FontStyles.Normal;
     [ObservableProperty] private double _textAreaWidth = 480;
@@ -65,6 +69,17 @@ public sealed partial class ReaderViewModel : ObservableObject
 
     private List<PaginationService.PageRange> _currentPages = new();
     private string _currentChapterText = string.Empty;
+
+    // 与 ReaderWindow.xaml 中 PageTextView 的 Padding="12,8" 保持一致：
+    // 分页测量的可用区域必须减去内边距，否则每页末尾的行会被渲染裁剪
+    private const double TextPaddingHorizontal = 24; // 12 * 2
+    private const double TextPaddingVertical = 16;   // 8 * 2
+
+    /// <summary>
+    /// 渲染侧显式行高（DIP）= 字号 × 行距系数。
+    /// 绑定到 TextBlock.LineHeight（BlockLineHeight），与分页引擎的行高完全一致。
+    /// </summary>
+    public double LineHeightPixels => FontSize * LineHeight;
 
     private ChapterListWindow? _chapterListWindow;
     private BookmarkWindow? _bookmarkWindow;
@@ -330,7 +345,6 @@ public sealed partial class ReaderViewModel : ObservableObject
     private void SetChapterAndPage(Chapter chapter, int page)
     {
         _currentChapterText = string.Empty;
-        GC.Collect(0, GCCollectionMode.Optimized, false);
 
         CurrentChapter = chapter;
         _session.SetChapter(chapter);
@@ -360,10 +374,14 @@ public sealed partial class ReaderViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(_currentChapterText)) { _currentPages = new(); TotalPages = 0; PageText = ""; return; }
         var s = _settings.Current.Display;
+        // 减去 TextBlock 内边距，测量区域与真实排版区域一致
+        var w = Math.Max(50, TextAreaWidth - TextPaddingHorizontal);
+        var h = Math.Max(50, TextAreaHeight - TextPaddingVertical);
         _currentPages = _paginator.Paginate(
             _currentChapterText,
-            s.FontFamily, s.FontSize, s.LineHeight,
-            TextAreaWidth, TextAreaHeight);
+            s.FontFamily, s.FontSize, s.LineHeight, w, h,
+            s.FontBold ? FontWeights.Bold : FontWeights.Normal,
+            s.FontItalic ? FontStyles.Italic : FontStyles.Normal);
         TotalPages = _currentPages.Count;
         if (CurrentPage >= TotalPages) CurrentPage = Math.Max(0, TotalPages - 1);
         UpdatePage();

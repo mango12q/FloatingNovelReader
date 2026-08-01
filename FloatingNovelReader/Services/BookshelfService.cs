@@ -1,7 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using Serilog;
 
@@ -25,7 +25,6 @@ public sealed class BookshelfService
     public void Reload(string? search = null, string orderBy = "LastReadTime")
     {
         _cache = _db.ListBooks(search, orderBy);
-        EventBus.Default.Publish(Constants.EvtBookChanged, _cache);
     }
 
     public Book? GetBook(int id) => _cache.FirstOrDefault(b => b.Id == id);
@@ -35,10 +34,13 @@ public sealed class BookshelfService
         var book = _db.GetBook(id);
         if (book == null) return null;
 
+        // 章节只查一次再按卷分组，避免逐卷 N+1 全量查询
+        var chaptersByVolume = _db.GetChapters(id).GroupBy(c => c.VolumeId).ToDictionary(g => g.Key);
         var volumes = _db.GetVolumes(id);
         foreach (var v in volumes)
         {
-            v.Chapters = _db.GetChapters(id).Where(c => c.VolumeId == v.Id).ToList();
+            if (chaptersByVolume.TryGetValue(v.Id, out var group))
+                v.Chapters = group.ToList();
         }
         book.Volumes = volumes;
         return book;
@@ -98,7 +100,6 @@ public sealed class BookshelfService
         _cache.RemoveAll(b => b.Id == bookId);
         Log.Information("从书架移除 {Id} {Title}, deleteSourceFile={Del}",
             bookId, book.Title, deleteSourceFile);
-        EventBus.Default.Publish(Constants.EvtBookRemoved, bookId);
         return deletedFile;
     }
 

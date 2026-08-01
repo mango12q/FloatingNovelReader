@@ -23,6 +23,9 @@ public sealed class AppSettings
     public HotkeyMode HotkeyMode { get; set; } = HotkeyMode.GlobalAlways;
     public bool AutoStart { get; set; }
 
+    /// <summary>用户已拒绝安装提示：以便携模式运行且不再询问</summary>
+    public bool SkipInstallPrompt { get; set; }
+
     public HotkeyConfig Hotkeys { get; set; } = new();
     public DisplaySettings Display { get; set; } = new();
 

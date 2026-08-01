@@ -9,12 +9,18 @@ using Serilog;
 namespace FloatingNovelReader.Services;
 
 /// <summary>
-/// SQLite 数据库管理�?///   - Initialize()：建�?///   - Books / Volumes / Chapters / ReadingProgress / Bookmarks 五个表的 CRUD
-/// 使用参数�?SQL 防注入�?/// </summary>
+/// SQLite 数据库管理：
+///   - Initialize()：建表
+///   - Books / Volumes / Chapters / ReadingProgress / Bookmarks 五个表的 CRUD
+/// 使用参数化 SQL 防注入。
+/// </summary>
 public sealed class DatabaseService
 {
     private readonly string _dbPath;
-    private string ConnectionString => $"Data Source={_dbPath}";
+
+    // Default Timeout: SQLite 单写者模型下，并发写默认立即抛 SQLITE_BUSY，
+    // 设置 busy timeout 后改为等待重试（进度防抖保存与后台读并发时尤其需要）
+    private string ConnectionString => $"Data Source={_dbPath};Default Timeout=2";
 
     public DatabaseService() : this(Constants.DbFile) { }
 
@@ -29,7 +35,7 @@ public sealed class DatabaseService
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
         using var conn = OpenConnection();
-        // 关键: SQLite 默认不开启外键约�? 不开的话 ON DELETE CASCADE 形同虚设
+        // 关键: SQLite 默认不开启外键约束；不开的话 ON DELETE CASCADE 形同虚设
         ExecNonQuery(conn, "PRAGMA foreign_keys = ON;");
 
         ExecNonQuery(conn, @"
@@ -100,7 +106,7 @@ CREATE TABLE IF NOT EXISTS Bookmarks (
         ExecNonQuery(conn, "CREATE INDEX IF NOT EXISTS idx_volumes_book ON Volumes(BookId);");
         ExecNonQuery(conn, "CREATE INDEX IF NOT EXISTS idx_bookmarks_book ON Bookmarks(BookId);");
 
-        Log.Information("SQLite 初始化完�? {Path}", _dbPath);
+        Log.Information("SQLite 初始化完成 {Path}", _dbPath);
     }
 
     // -------- Books --------
@@ -164,7 +170,7 @@ SELECT last_insert_rowid();";
         using var cmd = conn.CreateCommand();
         var sql = "SELECT * FROM Books";
         if (!string.IsNullOrWhiteSpace(search))
-            sql += " WHERE Title LIKE $s";
+            sql += " WHERE Title LIKE $s ESCAPE '\\'";
         sql += orderBy switch
         {
             "Title" => " ORDER BY Title COLLATE NOCASE ASC",
@@ -173,25 +179,10 @@ SELECT last_insert_rowid();";
         };
         cmd.CommandText = sql;
         if (!string.IsNullOrWhiteSpace(search))
-            cmd.Parameters.AddWithValue("$s", "%" + search + "%");
+            cmd.Parameters.AddWithValue("$s", "%" + EscapeLike(search) + "%");
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
-        {
-            list.Add(new Book
-            {
-                Id = reader.GetInt32(0),
-                Title = reader.GetString(1),
-                Author = reader.IsDBNull(2) ? null : reader.GetString(2),
-                FilePath = reader.GetString(3),
-                FileSize = reader.GetInt64(4),
-                Encoding = reader.GetString(5),
-                TotalChapters = reader.GetInt32(6),
-                TotalVolumes = reader.GetInt32(7),
-                ImportTime = DateTime.Parse(reader.GetString(8), null, System.Globalization.DateTimeStyles.RoundtripKind),
-                LastReadTime = reader.IsDBNull(9) ? null : DateTime.Parse(reader.GetString(9), null, System.Globalization.DateTimeStyles.RoundtripKind),
-                CoverColor = reader.GetString(10),
-            });
-        }
+            list.Add(MapBook(reader));
         return list;
     }
 
@@ -203,6 +194,14 @@ SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$id", bookId);
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
+        return MapBook(reader);
+    }
+
+    private static string EscapeLike(string s)
+        => s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    private static Book MapBook(SqliteDataReader reader)
+    {
         return new Book
         {
             Id = reader.GetInt32(0),
@@ -210,7 +209,7 @@ SELECT last_insert_rowid();";
             Author = reader.IsDBNull(2) ? null : reader.GetString(2),
             FilePath = reader.GetString(3),
             FileSize = reader.GetInt64(4),
-            Encoding = reader.GetString(5),
+            Encoding = reader.IsDBNull(5) ? "utf-8" : reader.GetString(5),
             TotalChapters = reader.GetInt32(6),
             TotalVolumes = reader.GetInt32(7),
             ImportTime = DateTime.Parse(reader.GetString(8), null, System.Globalization.DateTimeStyles.RoundtripKind),
@@ -311,8 +310,8 @@ SELECT last_insert_rowid();";
                 Title = reader.GetString(4),
                 StartPosition = reader.GetInt64(5),
                 EndPosition = reader.GetInt64(6),
-                StartLineNumber = reader.GetInt32(7),
-                LineCount = reader.GetInt32(8),
+                StartLineNumber = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                LineCount = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
             });
         }
         return list;
@@ -336,8 +335,8 @@ SELECT last_insert_rowid();";
             Title = reader.GetString(5),
             StartPosition = reader.GetInt64(6),
             EndPosition = reader.GetInt64(7),
-            StartLineNumber = reader.GetInt32(8),
-            LineCount = reader.GetInt32(9),
+            StartLineNumber = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+            LineCount = reader.IsDBNull(9) ? 0 : reader.GetInt32(9),
         };
     }
 
@@ -371,6 +370,53 @@ ON CONFLICT(BookId) DO UPDATE SET
         cmd.ExecuteNonQuery();
     }
 
+    /// <summary>
+    /// 只保存阅读位置（章节/页码/时间），不触碰窗口几何列。
+    /// 翻页防抖保存走这里，避免读-改-写把窗口几何污染成默认值。
+    /// </summary>
+    public void SaveReadingPosition(int bookId, int chapterId, int pageNumber, DateTime lastUpdated)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+INSERT INTO ReadingProgress (BookId, ChapterId, PageNumber, LastUpdated)
+VALUES ($bookId, $chapterId, $page, $time)
+ON CONFLICT(BookId) DO UPDATE SET
+    ChapterId = excluded.ChapterId,
+    PageNumber = excluded.PageNumber,
+    LastUpdated = excluded.LastUpdated;";
+        cmd.Parameters.AddWithValue("$bookId", bookId);
+        cmd.Parameters.AddWithValue("$chapterId", chapterId);
+        cmd.Parameters.AddWithValue("$page", pageNumber);
+        cmd.Parameters.AddWithValue("$time", lastUpdated.ToString("o"));
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// 只保存窗口几何（位置/尺寸/透明度），不触碰章节/页码列。
+    /// 窗口关闭时调用；进度行不存在时（尚未翻页）忽略，几何由下次完整保存写入。
+    /// </summary>
+    public void SaveWindowGeometry(int bookId, double left, double top, double width, double height, double opacity)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+UPDATE ReadingProgress SET
+    WindowLeft = $left,
+    WindowTop = $top,
+    WindowWidth = $width,
+    WindowHeight = $height,
+    Opacity = $opacity
+WHERE BookId = $bookId;";
+        cmd.Parameters.AddWithValue("$bookId", bookId);
+        cmd.Parameters.AddWithValue("$left", left);
+        cmd.Parameters.AddWithValue("$top", top);
+        cmd.Parameters.AddWithValue("$width", width);
+        cmd.Parameters.AddWithValue("$height", height);
+        cmd.Parameters.AddWithValue("$opacity", opacity);
+        cmd.ExecuteNonQuery();
+    }
+
     public ReadingProgress? GetProgress(int bookId)
     {
         using var conn = OpenConnection();
@@ -379,19 +425,7 @@ ON CONFLICT(BookId) DO UPDATE SET
         cmd.Parameters.AddWithValue("$id", bookId);
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
-        return new ReadingProgress
-        {
-            Id = reader.GetInt32(0),
-            BookId = reader.GetInt32(1),
-            ChapterId = reader.GetInt32(2),
-            PageNumber = reader.GetInt32(3),
-            LastUpdated = DateTime.Parse(reader.GetString(4), null, System.Globalization.DateTimeStyles.RoundtripKind),
-            WindowLeft = reader.IsDBNull(5) ? 0 : reader.GetDouble(5),
-            WindowTop = reader.IsDBNull(6) ? 0 : reader.GetDouble(6),
-            WindowWidth = reader.IsDBNull(7) ? 500 : reader.GetDouble(7),
-            WindowHeight = reader.IsDBNull(8) ? 700 : reader.GetDouble(8),
-            Opacity = reader.IsDBNull(9) ? 1 : reader.GetDouble(9),
-        };
+        return MapProgress(reader);
     }
 
     public ReadingProgress? GetMostRecentProgress()
@@ -401,6 +435,11 @@ ON CONFLICT(BookId) DO UPDATE SET
         cmd.CommandText = "SELECT * FROM ReadingProgress ORDER BY LastUpdated DESC LIMIT 1;";
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
+        return MapProgress(reader);
+    }
+
+    private static ReadingProgress MapProgress(SqliteDataReader reader)
+    {
         return new ReadingProgress
         {
             Id = reader.GetInt32(0),
@@ -410,8 +449,8 @@ ON CONFLICT(BookId) DO UPDATE SET
             LastUpdated = DateTime.Parse(reader.GetString(4), null, System.Globalization.DateTimeStyles.RoundtripKind),
             WindowLeft = reader.IsDBNull(5) ? 0 : reader.GetDouble(5),
             WindowTop = reader.IsDBNull(6) ? 0 : reader.GetDouble(6),
-            WindowWidth = reader.IsDBNull(7) ? 500 : reader.GetDouble(7),
-            WindowHeight = reader.IsDBNull(8) ? 700 : reader.GetDouble(8),
+            WindowWidth = reader.IsDBNull(7) ? Constants.DefaultWidth : reader.GetDouble(7),
+            WindowHeight = reader.IsDBNull(8) ? Constants.DefaultHeight : reader.GetDouble(8),
             Opacity = reader.IsDBNull(9) ? 1 : reader.GetDouble(9),
         };
     }
@@ -470,15 +509,25 @@ SELECT last_insert_rowid();";
     // -------- Util --------
 
     /// <summary>
-    /// 打开一�?Sqlite 连接并自动开启外键约束�?    /// 必须用此方法而非直接 new SqliteConnection, 否则 ON DELETE CASCADE 不会生效�?    /// </summary>
+    /// 打开一个 Sqlite 连接并自动开启外键约束。
+    /// 必须用此方法而非直接 new SqliteConnection，否则 ON DELETE CASCADE 不会生效。
+    /// </summary>
     private SqliteConnection OpenConnection()
     {
         var conn = new SqliteConnection(ConnectionString);
-        conn.Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "PRAGMA foreign_keys = ON;";
-        cmd.ExecuteNonQuery();
-        return conn;
+        try
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA foreign_keys = ON;";
+            cmd.ExecuteNonQuery();
+            return conn;
+        }
+        catch
+        {
+            conn.Dispose();
+            throw;
+        }
     }
 
     private static void ExecNonQuery(SqliteConnection conn, string sql)

@@ -38,7 +38,7 @@
 - **TXT 导入**：自动检测编码（GBK / UTF-8 / UTF-16 / Big5 …）
 - **自动分章**：识别「第 N 章 / 第一卷 / Chapter 1 / 1、」等多种写法
 - **章节目录**：按 `F9` 打开，按卷/章树形展示
-- **书签**：按 `F10` 添加 / `F11` 打开书签列表 / 列表点击跳转
+- **书签**：按 `F10` 添加 / `F12` 打开书签列表 / 列表点击跳转
 - **进度记忆**：阅读位置自动保存，下次打开自动恢复
 
 ### ⌨️ 全局快捷键
@@ -56,7 +56,8 @@
 
 ### 🔧 安装与卸载
 - **首次运行自动安装**：复制到用户目录 + 创建桌面/开始菜单快捷方式 + 注册到「设置 → 应用」
-- **便携模式**：加 `--portable` 参数启动则不安装，直接运行
+- **记住便携选择**：安装提示点「否」后写入 settings.json，之后启动不再询问
+- **便携模式**：便携版 zip 自带 `portable.mode` 标记直接免提示；也可加 `--portable` 参数启动
 - **卸载**：从「设置 → 应用」卸载，或运行 `FloatingNovelReader.exe --uninstall`
 - **运行时检测**：启动时自动检测 .NET 8 桌面运行时，未安装则引导下载
 
@@ -72,8 +73,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `floating-novel-reader-portable.exe` | 单个 EXE（约 4 MB），直接双击运行 |
-| `floating-novel-reader-portable-win-x64-*.zip` | 同上 EXE 的 zip 压缩包（约 3 MB） |
+| `floating-novel-reader-singlefile-win-x64.exe` | **单文件版**：单个 EXE（约 4 MB），双击即用，首次运行询问是否安装 |
+| `floating-novel-reader-portable-win-x64-*.zip` | **便携版**：解压即用（EXE + DLL 目录，约 2 MB），内含 `portable.mode` 标记，不弹安装提示 |
 
 ### 运行环境
 
@@ -93,12 +94,12 @@
 
 ### 安装步骤
 
-1. 下载 `floating-novel-reader-portable.exe`（或解压 zip 后的 EXE）
+1. 下载 `floating-novel-reader-singlefile-win-x64.exe`（或解压便携版 zip）
 2. 双击运行
-3. 首次运行会弹出安装确认对话框：
+3. 首次运行会弹出安装确认对话框（便携版 zip 不会弹）：
 
    - **点击「是」** → 自动安装到 `%LocalAppData%\Programs\FloatingNovelReader\`，创建桌面和开始菜单快捷方式，注册到系统卸载列表
-   - **点击「否」** → 以便携模式直接运行，不安装任何文件
+   - **点击「否」** → 以便携模式直接运行，并**记住选择**，之后启动不再询问
 
 4. 安装后，从桌面快捷方式启动即可
 
@@ -129,8 +130,8 @@
 
 | 快捷键 | 功能 |
 |--------|------|
-| `→` / `Space` | 下一页 |
-| `←` / `Backspace` | 上一页 |
+| `Space` | 下一页 |
+| `Backspace` | 上一页 |
 | `PageDown` / `PageUp` | 下一章 / 上一章 |
 | `F3` | 切换鼠标穿透 |
 | `F4` | 切换窗口置顶 |
@@ -139,8 +140,9 @@
 | `F8` | Boss Key（一键隐藏） |
 | `F9` | 章节目录 |
 | `F10` | 添加书签 |
-| `F11` | 书签列表 |
-| `Ctrl+↑` / `Ctrl+↓` | 增加 / 降低透明度 |
+| `F11` | 暂停（预留） |
+| `F12` | 书签列表 |
+| 小键盘 `+` / `-` | 增加 / 降低透明度 |
 
 > 所有快捷键都可在 **设置 → 快捷键** 中改键或清空。
 
@@ -158,18 +160,17 @@
                             │ DataBinding
 ┌───────────────────────────▼─────────────────────────────┐
 │  ViewModels（ReaderViewModel / BookshelfViewModel 等）      │
-│  通过 IEventAggregator 接收热键事件，持有 AppServices 引用   │
+│  通过 IEventAggregator 接收热键事件，持有 Services 引用      │
 └───────────────────────────┬─────────────────────────────┘
                             │ 调用
 ┌───────────────────────────▼─────────────────────────────┐
-│  ApplicationServices（IBookService / BookService）        │
-│  用例编排层：协调多个 Repository 完成业务场景                │
+│  Services（BookshelfService / BookImportService / …）      │
+│  业务编排层：协调 DatabaseService 完成业务场景               │
 └───────────────────────────┬─────────────────────────────┘
                             │ 依赖
 ┌───────────────────────────▼─────────────────────────────┐
-│  Infrastructure / Repositories                          │
-│  IBookRepository / IChapterRepository / IBookmarkRepository│
-│  SqliteBookRepository / …  — 可 Mock，可换数据库引擎         │
+│  DatabaseService（唯一数据访问层）                          │
+│  SQLite 5 表 CRUD，参数化 SQL，busy timeout，外键级联        │
 └───────────────────────────┬─────────────────────────────┘
                             │ 使用
 ┌───────────────────────────▼─────────────────────────────┐
@@ -202,12 +203,11 @@
 | MVVM | CommunityToolkit.Mvvm 8.4.0 | `[ObservableProperty]` / `[RelayCommand]` |
 | DI | Microsoft.Extensions.DependencyInjection 8.0.1 | 所有服务通过容器解析 |
 | 全局钩子 | Gma.System.MouseKeyHook 5.7.1 | 后台全局键盘监听，支持单键触发 |
-| 数据库 | SQLite（Microsoft.Data.Sqlite 8.0.10） | 5 表，外键级联，`PRAGMA foreign_keys=ON` |
-| 仓储抽象 | 自研 `IRepository<T>` | 每个实体独立 Repository，可 Mock |
-| 事件总线 | `IEventAggregator<T>`（自研） | 强类型事件，编译期检查，替代字符串 EventBus |
-| 编码检测 | Ude.NetStandard 1.2.0 | BOM + 启发式检测（GBK/UTF-8/UTF-16/Big5…） |
+| 数据库 | SQLite（Microsoft.Data.Sqlite 8.0.10） | 5 表，外键级联，`PRAGMA foreign_keys=ON`，busy timeout 2s |
+| 事件总线 | `IEventAggregator<T>`（自研） | 强类型事件，编译期检查 |
+| 编码检测 | Ude.NetStandard 1.2.0 | BOM + 启发式检测（GBK/UTF-8/UTF-16/Big5…），坏字节容错替换 |
 | 日志 | Serilog 4.0.0 | 按日滚动，保留 30 天，`%LocalAppData%\FloatingNovelReader\Logs\` |
-| 单元测试 | xUnit 2.9.2 + Moq | 64 个测试用例 |
+| 单元测试 | xUnit 2.9.2 | 81 个测试用例 |
 
 ---
 
@@ -228,34 +228,11 @@
 │   │
 │   ├── Core/                              # 基础设施层
 │   │   ├── Bootstrapper.cs               # DI 容器装配
-│   │   ├── Constants.cs                  # 全局常量（路径/尺寸/事件名…）
-│   │   ├── EventBus.cs                   # 兼容层：基于字符串的事件总线
+│   │   ├── Constants.cs                  # 全局常量（路径/尺寸…）
 │   │   ├── IEventAggregator.cs           # 强类型事件聚合器接口
 │   │   ├── EventAggregator.cs            # 强类型事件聚合器实现
-│   │   ├── HotkeyManager.cs              # 全局热键 + 防抖 + 录制屏蔽
-│   │   ├── KeyGestureLite.cs             # 单键/组合键描述
+│   │   ├── HotkeyManager.cs              # 全局热键 + 防抖 + 录制屏蔽（含 KeyGestureLite）
 │   │   └── SelfInstaller.cs              # 首次运行自安装 / 卸载
-│   │
-│   ├── Infrastructure/                    # 基础设施层（新增）
-│   │   ├── IDbConnectionFactory.cs       # SQLite 连接工厂接口
-│   │   ├── SqliteConnectionFactory.cs    # SQLite 连接工厂实现
-│   │   └── Repositories/                 # 仓储层
-│   │       ├── IBookRepository           # 书籍仓储接口
-│   │       ├── SqliteBookRepository      # SQLite 实现
-│   │       ├── IChapterRepository        # 章节仓储接口
-│   │       ├── SqliteChapterRepository   # SQLite 实现
-│   │       ├── IReadingProgressRepository# 进度仓储接口
-│   │       ├── SqliteReadingProgressRepository # SQLite 实现
-│   │       ├── IBookmarkRepository       # 书签仓储接口
-│   │       ├── SqliteBookmarkRepository  # SQLite 实现
-│   │       ├── IVolumeRepository         # 卷仓储接口
-│   │       ├── SqliteVolumeRepository    # SQLite 实现
-│   │       ├── IUnitOfWork               # 工作单元接口
-│   │       └── SqliteUnitOfWork          # SQLite 工作单元实现
-│   │
-│   ├── ApplicationServices/              # 应用服务层（用例编排）
-│   │   ├── IBookService.cs               # 书籍用例接口 + DTO
-│   │   └── BookService.cs                # 用例编排实现（并发查询）
 │   │
 │   ├── Models/                           # 数据模型
 │   │   ├── AppSettings.cs                # 全局应用设置
@@ -276,7 +253,7 @@
 │   │   ├── TrayIconService.cs            # 系统托盘
 │   │   ├── SettingsService.cs            # 设置读写（settings.json）
 │   │   ├── StartupService.cs             # 启动行为（恢复位置 or 打开书架）
-│   │   └── DatabaseService.cs            # 数据库初始化 + 兼容层
+│   │   └── DatabaseService.cs            # 数据库初始化 + 全部 CRUD（单一数据访问层）
 │   │
 │   ├── ViewModels/                       # MVVM ViewModel 层
 │   │   ├── ReaderViewModel.cs            # 阅读器主窗口（热键 via EventAggregator）
@@ -294,9 +271,7 @@
 │   │
 │   ├── Controls/                         # 自定义 WPF 控件
 │   │   ├── HotkeyTextBox.cs              # 快捷键录入控件（录制态 + 防误触）
-│   │   ├── OverlayControlBar.xaml(.cs)   # 悬浮控制栏（菜单/设置/关闭）
-│   │   ├── PageTextBlock.cs              # 分页文本渲染控件
-│   │   └── ResizeGrip.cs                 # 8 方向拖拽缩放手柄
+│   │   └── OverlayControlBar.xaml(.cs)   # 悬浮控制栏（菜单/设置/关闭）
 │   │
 │   ├── Helpers/                          # 辅助工具
 │   │   ├── ChapterParser.cs              # 卷章正则解析引擎
@@ -314,13 +289,14 @@
 │       ├── Icons/app.ico                 # 应用图标
 │       └── Styles.xaml                   # 全局样式
 │
-└── FloatingNovelReader.Tests/            # 单元测试（xUnit，64 用例）
+└── FloatingNovelReader.Tests/            # 单元测试（xUnit，81 用例）
     ├── Core/KeyGestureLiteTests.cs
     ├── Helpers/ChineseNumberTests.cs
     ├── Helpers/TextEncoderDetectorTests.cs
     └── Services/
         ├── BookImportServiceTests.cs
         ├── BookshelfServiceTests.cs
+        ├── ChapterContentRoundTripTests.cs
         ├── ChapterParserTests.cs
         └── PaginationServiceTests.cs
 ```
@@ -360,9 +336,10 @@ dotnet test
 
 ```
 publish/
-├── win-x64-portable/
-│   └── floating-novel-reader-portable.exe   # 单文件 EXE（约 4 MB，~4.05 MB 实测）
-└── floating-novel-reader-portable-win-x64-*.zip  # zip 压缩包（约 3 MB，~2.82 MB 实测）
+├── win-x64-singlefile/
+│   └── floating-novel-reader-singlefile-win-x64.exe   # 单文件版（约 4 MB）
+├── win-x64-portable/                                  # 便携版目录（含 portable.mode）
+└── floating-novel-reader-portable-win-x64-*.zip       # 便携版压缩包（约 2 MB）
 ```
 
 ---
@@ -388,15 +365,16 @@ dotnet test
 
 | 模块 | 测试内容 |
 |------|---------|
-| `KeyGestureLite` | 单键/组合键解析往返（8 条） |
-| `ChapterParser` | 卷章解析全场景（12 条） |
-| `PaginationService` | 分页正确性 + 性能 < 200ms（5 条） |
+| `KeyGestureLite` | 单键/组合键解析往返（19 条） |
+| `ChapterParser` | 卷章解析全场景（23 条） |
+| `PaginationService` | 分页正确性 + 性能 < 200ms + 字符级完整性（6 条） |
 | `BookImportService` | TXT 导入端到端 + 重复导入检测（3 条） |
-| `BookshelfService` | 级联删除 CASCADE + 源文件删除（6 条） |
-| `TextEncoderDetector` | BOM / UTF-16 / GBK 编码检测（4 条） |
-| `ChineseNumber` | 中文数字→阿拉伯数字 0~9999（14 条） |
+| `BookshelfService` | 级联删除 CASCADE + 源文件删除（5 条） |
+| `TextEncoderDetector` | BOM / UTF-16 / GBK 编码检测（6 条） |
+| `ChineseNumber` | 中文数字→阿拉伯数字（12 条） |
+| `ChapterContentRoundTrip` | 章节字节偏移往返（UTF-8/UTF-16/GBK/CRLF，7 条） |
 
-共 **64 条**，全部通过。
+共 **80 条**，全部通过。
 
 ---
 

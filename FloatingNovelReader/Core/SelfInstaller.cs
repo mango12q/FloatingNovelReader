@@ -57,6 +57,16 @@ public static class SelfInstaller
         if (Array.Exists(args, a => a.Equals("--portable", StringComparison.OrdinalIgnoreCase)))
             return false;
 
+        // 便携版标记文件（与 EXE 同目录的 portable.mode）→ 直接便携运行，永不提示
+        var exeDir = Path.GetDirectoryName(Environment.ProcessPath ?? "") ?? "";
+        if (File.Exists(Path.Combine(exeDir, "portable.mode")))
+            return false;
+
+        // 用户上次选择了「否」→ 记住选择，不再重复询问
+        var settings = Helpers.JsonHelper.LoadSettings(Constants.SettingsFile);
+        if (settings.SkipInstallPrompt)
+            return false;
+
         // 弹确认对话框
         var result = MessageBox.Show(
             $"{DisplayName} 尚未安装，是否现在安装？\n\n" +
@@ -64,13 +74,22 @@ public static class SelfInstaller
             "• 创建桌面快捷方式\n" +
             "• 创建开始菜单快捷方式\n" +
             "• 可从「设置 → 应用」卸载\n\n" +
-            "点击「否」将以便携模式直接运行（不安装）。",
+            "点击「否」将以便携模式直接运行（不再询问）。",
             "安装 " + DisplayName,
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
         if (result != MessageBoxResult.Yes)
+        {
+            // 记住「否」的选择，下次启动直接便携运行
+            try
+            {
+                settings.SkipInstallPrompt = true;
+                Helpers.JsonHelper.SaveSettings(Constants.SettingsFile, settings);
+            }
+            catch { /* 写不进去就算了，下次再问一次 */ }
             return false;
+        }
 
         try
         {

@@ -29,8 +29,8 @@ public static class ChapterContentReader
         Encoding enc;
         try
         {
-            enc = Encoding.GetEncoding(encodingName ?? "utf-8",
-                new EncoderExceptionFallback(), new DecoderExceptionFallback());
+            // 替换回退：坏字节显示为 U+FFFD 而不是抛异常导致整章加载失败
+            enc = Encoding.GetEncoding(encodingName ?? "utf-8");
         }
         catch
         {

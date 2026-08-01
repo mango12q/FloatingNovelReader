@@ -28,7 +28,6 @@ public sealed class AutoReadService
         {
             _intervalSec = Math.Clamp(value, Constants.MinAutoReadIntervalSec, Constants.MaxAutoReadIntervalSec);
             _timer.Interval = TimeSpan.FromSeconds(_intervalSec);
-            EventBus.Default.Publish(Constants.EvtAutoReadIntervalChanged, _intervalSec);
         }
     }
     private int _intervalSec = Constants.DefaultAutoReadIntervalSec;
@@ -45,7 +44,6 @@ public sealed class AutoReadService
         _isRunning = true;
         _timer.Interval = TimeSpan.FromSeconds(_intervalSec);
         _timer.Start();
-        EventBus.Default.Publish(Constants.EvtReadingModeChanged, ReadingMode.AutoRead);
         Started?.Invoke(this, EventArgs.Empty);
         Log.Information("自动阅读已启动, 间隔 {Sec}s", _intervalSec);
     }
@@ -55,7 +53,6 @@ public sealed class AutoReadService
         if (!_isRunning) return;
         _isRunning = false;
         _timer.Stop();
-        EventBus.Default.Publish(Constants.EvtReadingModeChanged, ReadingMode.Manual);
         Stopped?.Invoke(this, EventArgs.Empty);
         Log.Information("自动阅读已停止");
     }

@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
-using FloatingNovelReader.Models;
+using System.Windows.Media.TextFormatting;
 using Serilog;
 
 namespace FloatingNovelReader.Services;
@@ -15,18 +12,24 @@ namespace FloatingNovelReader.Services;
 /// 分页引擎。
 /// 输入：章节全文、字体族、字体大小、行间距、可用区域宽高
 /// 输出：每页文本范围（起始字符、长度）
-/// 使用 FormattedText 进行像素级测量，遍历文字直到超过页高即切割。
+/// 使用 WPF TextFormatter 逐行排版（与 TextBlock 渲染同一套布局引擎），
+/// 行高 = FontSize × LineHeightFactor，与渲染侧 TextBlock.LineHeight 显式绑定值一致。
 /// </summary>
 public sealed class PaginationService
 {
+    private const int MaxCacheEntries = 8;
+
     private readonly Dictionary<string, List<PageRange>> _cache = new(StringComparer.Ordinal);
+    private readonly Queue<string> _cacheOrder = new();
     private readonly object _lock = new();
-    private string? _cacheKey;
+    private double _lastAreaWidth;
+    private double _lastAreaHeight;
 
     public record PageRange(int Start, int Length);
 
     /// <summary>
     /// 计算章节分页。
+    /// areaWidth/areaHeight 应为「减去内边距后」的实际排版区域（DIP）。
     /// 性能目标：1 万字 &lt; 200ms。
     /// </summary>
     public List<PageRange> Paginate(
@@ -35,87 +38,123 @@ public sealed class PaginationService
         double fontSize,
         double lineHeight,
         double areaWidth,
-        double areaHeight)
+        double areaHeight,
+        FontWeight? fontWeight = null,
+        FontStyle? fontStyle = null)
     {
-        // 用文本内容哈希 + 参数组合作为缓存键，防止不同文本长度相同时缓存误命中
-        var contentHash = System.HashCode.Combine(chapterText);
-        var key = $"{fontFamily}|{fontSize:F2}|{lineHeight:F2}|{areaWidth:F2}|{areaHeight:F2}|{contentHash:X}";
+        var weight = fontWeight ?? FontWeights.Normal;
+        var style = fontStyle ?? FontStyles.Normal;
+        var contentHash = chapterText.GetHashCode();
+        var key = $"{fontFamily}|{fontSize:F2}|{lineHeight:F2}|{weight.ToOpenTypeWeight()}|{style}|{areaWidth:F2}|{areaHeight:F2}|{chapterText.Length}:{contentHash:X8}";
+
         lock (_lock)
         {
-            if (_cacheKey == key && _cache.TryGetValue(chapterText, out var cached))
+            _lastAreaWidth = areaWidth;
+            _lastAreaHeight = areaHeight;
+            if (_cache.TryGetValue(key, out var cached))
                 return cached;
         }
 
-        var result = Compute(chapterText, fontFamily, fontSize, lineHeight, areaWidth, areaHeight);
+        List<PageRange> result;
+        try
+        {
+            result = Compute(chapterText, fontFamily, fontSize, lineHeight, areaWidth, areaHeight, weight, style);
+        }
+        catch (Exception ex)
+        {
+            // 排版引擎失败（如字体缺失）时退回粗略估算，保证阅读不中断
+            Log.Warning(ex, "TextFormatter 分页失败，退回启发式估算");
+            result = FallbackCompute(chapterText, fontSize, lineHeight, areaWidth, areaHeight);
+        }
+
         lock (_lock)
         {
-            _cacheKey = key;
-            _cache[chapterText] = result;
+            _cache[key] = result;
+            _cacheOrder.Enqueue(key);
+            while (_cacheOrder.Count > MaxCacheEntries)
+            {
+                var oldest = _cacheOrder.Dequeue();
+                _cache.Remove(oldest);
+            }
         }
         return result;
     }
 
-    private List<PageRange> Compute(
+    private static List<PageRange> Compute(
         string text,
         string fontFamily,
         double fontSize,
-        double lineHeight,
+        double lineHeightFactor,
         double areaWidth,
-        double areaHeight)
+        double areaHeight,
+        FontWeight weight,
+        FontStyle style)
     {
         var pages = new List<PageRange>();
         if (string.IsNullOrEmpty(text)) { pages.Add(new PageRange(0, 0)); return pages; }
 
-        var typeface = new Typeface(
-            new FontFamily(fontFamily),
-            FontStyles.Normal,
-            FontWeights.Normal,
-            FontStretches.Normal);
+        double linePx = Math.Max(1, fontSize * lineHeightFactor);
+        double wrapWidth = Math.Max(20, areaWidth);
+        double pageHeight = Math.Max(linePx, areaHeight);
 
-        double linePixel = fontSize * lineHeight * 1.35; // 大致行高（包含 ascent+descent）
-        int linesPerPage = Math.Max(1, (int)Math.Floor(areaHeight / linePixel));
-        int charsPerPage = Math.Max(1, (int)Math.Floor(areaWidth / (fontSize * 0.55)) * linesPerPage);
+        var typeface = new Typeface(new FontFamily(fontFamily), style, weight, FontStretches.Normal);
+        var runProps = new PageRunProperties(typeface, fontSize);
+        var paraProps = new PageParagraphProperties(runProps, linePx);
 
-        // 第一遍：按 charsPerPage 切分（粗略）
+        var formatter = TextFormatter.Create();
+        var source = new StringTextSource(text, runProps);
+
         int cursor = 0;
         while (cursor < text.Length)
         {
-            int end = Math.Min(cursor + charsPerPage, text.Length);
-
-            // 尽量在段落边界处切分
-            int breakAt = FindBreak(text, cursor, end);
-            if (breakAt <= cursor) breakAt = end;
-
-            pages.Add(new PageRange(cursor, breakAt - cursor));
-            cursor = breakAt;
-            // 跳过换行符
-            while (cursor < text.Length && text[cursor] == '\r') cursor++;
-            if (cursor < text.Length && text[cursor] == '\n') cursor++;
+            int pageStart = cursor;
+            double used = 0;
+            while (cursor < text.Length)
+            {
+                using var line = formatter.FormatLine(source, cursor, wrapWidth, paraProps, null);
+                if (line == null || line.Length <= 0)
+                {
+                    cursor++; // 安全兜底，防死循环
+                    continue;
+                }
+                // 本页已放不下更多行则切页（但每页至少放一行，避免极端行高卡死）
+                if (used + line.Height > pageHeight + 0.01 && cursor > pageStart)
+                    break;
+                cursor += line.Length;
+                // 末行可能连带消耗 TextEndOfParagraph 占位符，钳制到文本末尾
+                if (cursor > text.Length) cursor = text.Length;
+                used += line.Height;
+            }
+            pages.Add(new PageRange(pageStart, cursor - pageStart));
         }
 
         return pages;
     }
 
-    private static int FindBreak(string text, int from, int desiredEnd)
+    private static List<PageRange> FallbackCompute(
+        string text, double fontSize, double lineHeight, double areaWidth, double areaHeight)
     {
-        // 在 desiredEnd 附近向前找最近的段落边界（\n\n 或 \n）
-        int limit = Math.Min(text.Length, desiredEnd);
-        for (int i = limit - 1; i > from + 20; i--)
+        var pages = new List<PageRange>();
+        if (string.IsNullOrEmpty(text)) { pages.Add(new PageRange(0, 0)); return pages; }
+
+        double linePixel = fontSize * lineHeight;
+        int linesPerPage = Math.Max(1, (int)Math.Floor(areaHeight / linePixel));
+        // CJK 字形宽约 1.0em；取 0.9 留一点余量
+        int charsPerPage = Math.Max(1, (int)Math.Floor(areaWidth / (fontSize * 0.9)) * linesPerPage);
+
+        int cursor = 0;
+        while (cursor < text.Length)
         {
-            if (i + 1 < text.Length && text[i] == '\n' && (text[i + 1] == '\n' || i + 1 == desiredEnd))
-                return i + 1;
+            int end = Math.Min(cursor + charsPerPage, text.Length);
+            pages.Add(new PageRange(cursor, end - cursor));
+            cursor = end;
         }
-        // 退而求其次：找最近的 \n
-        for (int i = limit - 1; i > from + 20; i--)
-        {
-            if (text[i] == '\n') return i + 1;
-        }
-        return desiredEnd;
+        return pages;
     }
 
     public void ClearCache()
     {
-        lock (_lock) { _cache.Clear(); _cacheKey = null; }
+        lock (_lock) { _cache.Clear(); _cacheOrder.Clear(); }
     }
 
     /// <summary>
@@ -126,20 +165,106 @@ public sealed class PaginationService
     {
         lock (_lock)
         {
-            if (_cacheKey is not null)
+            if (Math.Abs(_lastAreaWidth - newWidth) < threshold &&
+                Math.Abs(_lastAreaHeight - newHeight) < threshold)
             {
-                // 从 _cacheKey 中解析上次的 areaWidth/areaHeight
-                var parts = _cacheKey.Split('|');
-                if (parts.Length >= 4 &&
-                    double.TryParse(parts[3], out var cachedW) &&
-                    double.TryParse(parts[4], out var cachedH) &&
-                    Math.Abs(cachedW - newWidth) < threshold &&
-                    Math.Abs(cachedH - newHeight) < threshold)
-                {
-                    return false; // 尺寸变化微小，不需要重算
-                }
+                return false; // 尺寸变化微小，不需要重算
             }
             return true; // 需要重算
         }
+    }
+
+    /// <summary>
+    /// 排版属性：字号/字体/显式行高。与 TextBlock（LineHeight=LineHeightPixels, BlockLineHeight）一致。
+    /// .NET Core WPF 中 GenericTextRunProperties 是 internal，需自行实现。
+    /// </summary>
+    private sealed class PageRunProperties : TextRunProperties
+    {
+        private static readonly CultureInfo ZhCn = CultureInfo.GetCultureInfo("zh-CN");
+        private readonly Typeface _typeface;
+        private readonly double _size;
+
+        public PageRunProperties(Typeface typeface, double size)
+        {
+            _typeface = typeface;
+            _size = size;
+        }
+
+        public override Brush? BackgroundBrush => null;
+        public override BaselineAlignment BaselineAlignment => BaselineAlignment.Baseline;
+        public override CultureInfo? CultureInfo => ZhCn;
+        public override double FontHintingEmSize => _size;
+        public override double FontRenderingEmSize => _size;
+        public override Brush ForegroundBrush => Brushes.Black;
+        public override NumberSubstitution? NumberSubstitution => null;
+        public override TextDecorationCollection? TextDecorations => null;
+        public override TextEffectCollection? TextEffects => null;
+        public override Typeface Typeface => _typeface;
+        public override TextRunTypographyProperties? TypographyProperties => null;
+    }
+
+    private sealed class PageParagraphProperties : TextParagraphProperties
+    {
+        private readonly TextRunProperties _runProps;
+        private readonly double _lineHeight;
+
+        public PageParagraphProperties(TextRunProperties runProps, double lineHeight)
+        {
+            _runProps = runProps;
+            _lineHeight = lineHeight;
+        }
+
+        public override TextRunProperties DefaultTextRunProperties => _runProps;
+        public override bool FirstLineInParagraph => true;
+        public override FlowDirection FlowDirection => FlowDirection.LeftToRight;
+        public override double Indent => 0;
+        public override double LineHeight => _lineHeight;
+        public override double DefaultIncrementalTab => 0;
+        public override TextAlignment TextAlignment => TextAlignment.Left;
+        public override TextMarkerProperties? TextMarkerProperties => null;
+        public override TextWrapping TextWrapping => TextWrapping.Wrap;
+    }
+
+    /// <summary>
+    /// 把章节全文按换行符提供给 TextFormatter 的字符源。
+    /// \r\n 视为一个换行；TextEndOfLine 消耗换行符本身。
+    /// </summary>
+    private sealed class StringTextSource : TextSource
+    {
+        private static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("zh-CN");
+        private readonly string _text;
+        private readonly TextRunProperties _props;
+
+        public StringTextSource(string text, TextRunProperties props)
+        {
+            _text = text;
+            _props = props;
+        }
+
+        public override TextRun GetTextRun(int textSourceCharacterIndex)
+        {
+            if (textSourceCharacterIndex >= _text.Length)
+                return new TextEndOfParagraph(1);
+
+            int i = textSourceCharacterIndex;
+            char c = _text[i];
+            if (c == '\r')
+            {
+                int w = (i + 1 < _text.Length && _text[i + 1] == '\n') ? 2 : 1;
+                return new TextEndOfLine(w);
+            }
+            if (c == '\n')
+                return new TextEndOfLine(1);
+
+            int end = i;
+            while (end < _text.Length && _text[end] != '\r' && _text[end] != '\n') end++;
+            return new TextCharacters(_text, i, end - i, _props);
+        }
+
+        public override TextSpan<CultureSpecificCharacterBufferRange> GetPrecedingText(int textSourceCharacterIndexLimit)
+            => new(0, new CultureSpecificCharacterBufferRange(Culture, new CharacterBufferRange(string.Empty, 0, 0)));
+
+        public override int GetTextEffectCharacterIndexFromTextSourceCharacterIndex(int textSourceCharacterIndex)
+            => throw new NotSupportedException();
     }
 }

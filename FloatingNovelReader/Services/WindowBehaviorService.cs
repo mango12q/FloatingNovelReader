@@ -49,7 +49,6 @@ public sealed class WindowBehaviorService
         if (hwnd == IntPtr.Zero) return;
         Win32Helper.SetClickThrough(hwnd, enable);
         ClickThrough = enable ? ClickThroughState.ClickThrough : ClickThroughState.Normal;
-        EventBus.Default.Publish(Constants.EvtClickThroughChanged, ClickThrough);
         ClickThroughChanged?.Invoke(this, EventArgs.Empty);
         Log.Information("鼠标穿透: {State}", ClickThrough);
     }
@@ -66,7 +65,6 @@ public sealed class WindowBehaviorService
         if (hwnd == IntPtr.Zero) return;
         Win32Helper.SetTopmost(hwnd, topmost);
         Topmost = topmost ? TopmostState.Topmost : TopmostState.Normal;
-        EventBus.Default.Publish(Constants.EvtTopmostChanged, Topmost);
         TopmostChanged?.Invoke(this, EventArgs.Empty);
         Log.Information("置顶: {State}", Topmost);
     }
@@ -76,7 +74,6 @@ public sealed class WindowBehaviorService
         if (_window == null) return;
         var clamped = Math.Clamp(opacity, Constants.MinOpacity, Constants.MaxOpacity);
         _window.Opacity = clamped;
-        EventBus.Default.Publish(Constants.EvtOpacityChanged, clamped);
         OpacityChanged?.Invoke(this, EventArgs.Empty);
     }
 

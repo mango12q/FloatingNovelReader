@@ -39,18 +39,18 @@ public sealed class BookImportService
     public Book Import(string filePath)
     {
         Log.Information("开始导入 {File}", filePath);
-        var fi = new FileInfo(filePath);
 
-        // 1. 编码检测
-        var encoding = _detector.DetectFromFile(filePath);
+        // 1. 一次性读入字节（只读一遍，避免先采样检测再全文解码的双重 IO）
+        var bytes = File.ReadAllBytes(filePath);
+
+        // 2. 编码检测（容错：坏字节替换为 U+FFFD，不会导入失败）
+        var encoding = _detector.Detect(bytes);
         Log.Debug("检测到编码 {Encoding} ({WebName})", encoding.EncodingName, encoding.WebName);
 
-        // 2. 解码
-        var text = _detector.DecodeFile(filePath, encoding);
-
-        // 3. 卷章解析（BOM 已被解码剥掉，字节偏移要从 BOM 之后算起）
+        // 3. 卷章解析：直接在字节流上扫行，偏移精确，
+        //    不受容错解码（U+FFFD 替换）导致的重编码长度漂移影响
         var bomLength = _detector.GetPreambleLength(filePath, encoding);
-        var book = _parser.Parse(text, filePath, fi.Length, encoding, bomLength);
+        var book = _parser.Parse(bytes, filePath, encoding, bomLength);
         book.Encoding = encoding.WebName ?? encoding.EncodingName;
 
         // 4. 入库
@@ -78,7 +78,6 @@ public sealed class BookImportService
         Log.Information("导入完成 {Title} 卷数={Volumes} 章数={Chapters}",
             book.Title, book.TotalVolumes, book.TotalChapters);
 
-        Core.EventBus.Default.Publish(Core.Constants.EvtBookImported, book);
         return book;
     }
 }

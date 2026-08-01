@@ -40,6 +40,10 @@ public sealed class ReadingSessionService
     /// <summary>打开一本书。恢复进度（含窗口位置等）。</summary>
     public ReadingProgress? Open(Book book)
     {
+        // 先把上一本书未落盘的进度冲掉，避免切换后防抖定时器用新书的状态覆盖旧书进度
+        Flush();
+        _pending = null;
+
         _currentBook = book;
         _currentPage = 0;
         var progress = _db.GetProgress(book.Id);
@@ -54,17 +58,12 @@ public sealed class ReadingSessionService
             _currentChapter = _db.GetChapters(book.Id).FirstOrDefault();
             _currentPage = 0;
         }
-
-        EventBus.Default.Publish(Constants.EvtBookChanged, book);
-        EventBus.Default.Publish(Constants.EvtChapterChanged, _currentChapter);
-        EventBus.Default.Publish(Constants.EvtPageChanged, _currentPage);
         return progress;
     }
 
     public void SetPage(int page)
     {
         _currentPage = Math.Max(0, page);
-        EventBus.Default.Publish(Constants.EvtPageChanged, _currentPage);
         MarkProgressDirty();
     }
 
@@ -73,8 +72,6 @@ public sealed class ReadingSessionService
         _currentChapter = chapter;
         _currentPage = 0;
         ChapterChanged?.Invoke(this, EventArgs.Empty);
-        EventBus.Default.Publish(Constants.EvtChapterChanged, chapter);
-        EventBus.Default.Publish(Constants.EvtPageChanged, _currentPage);
         MarkProgressDirty();
     }
 
@@ -93,24 +90,32 @@ public sealed class ReadingSessionService
         _saveTimer.Start();
     }
 
+    /// <summary>保存窗口几何（关闭窗口时调用）。不触碰章节/页码。</summary>
     public void SaveProgress(double left, double top, double width, double height, double opacity)
     {
-        if (_currentBook == null || _currentChapter == null) return;
+        if (_currentBook == null) return;
+        // 先落盘未保存的阅读位置，避免关闭瞬间丢进度
+        Flush();
         try
         {
-            _db.SaveProgress(new ReadingProgress
-            {
-                BookId = _currentBook.Id,
-                ChapterId = _currentChapter.Id,
-                PageNumber = _currentPage,
-                LastUpdated = DateTime.UtcNow,
-                WindowLeft = left,
-                WindowTop = top,
-                WindowWidth = width,
-                WindowHeight = height,
-                Opacity = opacity,
-            });
+            _db.SaveWindowGeometry(_currentBook.Id, left, top, width, height, opacity);
             _db.TouchLastReadTime(_currentBook.Id);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "保存窗口状态失败");
+        }
+    }
+
+    /// <summary>把待保存的阅读位置落盘。只写章节/页码，不动窗口几何。</summary>
+    private void FlushProgress()
+    {
+        var p = _pending;
+        if (p == null) return;
+        try
+        {
+            _db.SaveReadingPosition(p.BookId, p.ChapterId, p.PageNumber, p.LastUpdated);
+            _db.TouchLastReadTime(p.BookId);
         }
         catch (Exception ex)
         {
@@ -118,24 +123,11 @@ public sealed class ReadingSessionService
         }
     }
 
-    private void FlushProgress()
-    {
-        if (_currentBook != null && _currentChapter != null)
-        {
-            var progress = _db.GetProgress(_currentBook.Id);
-            double left = progress?.WindowLeft ?? 0;
-            double top = progress?.WindowTop ?? 0;
-            double width = progress?.WindowWidth ?? Constants.DefaultWidth;
-            double height = progress?.WindowHeight ?? Constants.DefaultHeight;
-            double opacity = progress?.Opacity ?? 1.0;
-            SaveProgress(left, top, width, height, opacity);
-        }
-    }
-
-    /// <summary>立即刷新进度（关闭窗口时调用）</summary>
+    /// <summary>立即刷新进度（关闭窗口/切换书籍时调用）</summary>
     public void Flush()
     {
         _saveTimer.Stop();
         FlushProgress();
+        _pending = null;
     }
 }

@@ -20,6 +20,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public Array BackgroundPresets { get; } = Enum.GetValues<BackgroundPreset>();
     public Array FontColorPresets { get; } = Enum.GetValues<FontColorPreset>();
     public Array StartupOptions { get; } = Enum.GetValues<StartupBehavior>();
+    public Array HotkeyModeOptions { get; } = Enum.GetValues<HotkeyMode>();
 
     public SettingsViewModel(
         SettingsService settings,
@@ -32,7 +33,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _current = settings.Current;
         _autoReadIntervalSec = Current.AutoReadIntervalSec;
 
-        foreach (var f in _fontHelper.GetChineseFontFamilies())
+        foreach (var f in _fontHelper.GetFontFamiliesForPicker())
             FontFamilies.Add(f);
     }
 
@@ -48,6 +49,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     public void Cancel()
     {
         _settings.Reload();
+        // Reload 会新建 AppSettings 实例，必须同步刷新引用，
+        // 否则后续编辑/保存都落在被丢弃的旧对象上，修改静默丢失
+        Current = _settings.Current;
+        AutoReadIntervalSec = Current.AutoReadIntervalSec;
     }
 
     [RelayCommand]

@@ -114,6 +114,75 @@ public sealed class ChapterParser
     }
 
     /// <summary>
+    /// 基于原始字节流解析一整本 TXT（推荐入口）。
+    /// 行偏移直接在字节流中按编码的换行字节序列扫描得到，
+    /// 即使解码出现 U+FFFD 替换字符（坏字节容错），偏移也永远精确。
+    /// </summary>
+    /// <param name="bytes">文件全部字节</param>
+    /// <param name="filePath">原文件路径</param>
+    /// <param name="encoding">文件实际编码</param>
+    /// <param name="bomLength">文件头 BOM 字节数（0 表示无 BOM）</param>
+    public Book Parse(byte[] bytes, string filePath, Encoding encoding, int bomLength)
+    {
+        var (lines, linePositions) = SplitBytesIntoLines(bytes, encoding, bomLength);
+        return ParseLines(lines, linePositions, filePath, bytes.Length);
+    }
+
+    /// <summary>
+    /// 按编码把字节流拆成行，返回行文本数组和每行的起始字节偏移（含末尾哨兵）。
+    /// 换行符的字节形式随编码不同：UTF-8/GBK 是 1 字节 0x0A，
+    /// UTF-16 是 2 字节，UTF-32 是 4 字节；多字节编码按对齐步长扫描防止误判。
+    /// </summary>
+    private static (string[] Lines, long[] Positions) SplitBytesIntoLines(byte[] bytes, Encoding encoding, int startOffset)
+    {
+        var nl = encoding.GetBytes("\n");
+        int step = nl.Length > 1 ? nl.Length : 1;
+
+        var lines = new List<string>();
+        var positions = new List<long>();
+
+        int lineStart = startOffset;
+        int i = startOffset;
+        while (i <= bytes.Length - nl.Length)
+        {
+            bool match = true;
+            for (int k = 0; k < nl.Length; k++)
+            {
+                if (bytes[i + k] != nl[k]) { match = false; break; }
+            }
+            if (match)
+            {
+                // 行内容不含 \n（可能含 \r，与 Split('\n') 语义一致）
+                lines.Add(DecodeRange(bytes, lineStart, i - lineStart, encoding));
+                positions.Add(lineStart);
+                i += nl.Length;
+                lineStart = i;
+            }
+            else
+            {
+                i += step;
+            }
+        }
+
+        // 最后一行（文件可能不以换行结尾）
+        if (lineStart < bytes.Length || lines.Count == 0)
+        {
+            lines.Add(DecodeRange(bytes, lineStart, bytes.Length - lineStart, encoding));
+            positions.Add(lineStart);
+        }
+        positions.Add(bytes.Length); // 哨兵：文件末尾
+
+        return (lines.ToArray(), positions.ToArray());
+    }
+
+    private static string DecodeRange(byte[] bytes, int offset, int count, Encoding encoding)
+    {
+        if (count <= 0) return string.Empty;
+        // 容错解码（替换回退），坏字节显示为 U+FFFD；不影响偏移——偏移来自字节扫描
+        return encoding.GetString(bytes, offset, count);
+    }
+
+    /// <summary>
     /// 解析一整本 TXT，返回 Book（含 Volumes / Chapters）。
     /// 注意：text 已经是解码后的字符串；positions 数组（可选）记录每行在原字节流中的位置。
     /// </summary>
@@ -124,23 +193,10 @@ public sealed class ChapterParser
     /// <param name="byteOffset">正文起始的字节偏移（文件头 BOM 的字节数，解码后的 text 中已被剥掉）</param>
     public Book Parse(string text, string filePath, long fileSize, Encoding? encoding = null, long byteOffset = 0)
     {
-        var book = new Book
-        {
-            FilePath = filePath,
-            FileSize = fileSize,
-            Title = System.IO.Path.GetFileNameWithoutExtension(filePath),
-        };
-
-        // 尝试提取作者
-        var authorMatch = ReAuthor.Match(text);
-        if (authorMatch.Success)
-        {
-            book.Author = authorMatch.Groups[1].Value.Trim();
-        }
-
         // 拆分行为 line list。
         // 偏移按「实际编码」计算：换行符在 UTF-16 下是 2 字节，硬编码 +1 会让
         // 每行偏移累积错位，阅读时按偏移回读的章节内容全是乱码。
+        // 注意：此路径假设解码无损；含坏字节的文件请走 Parse(byte[]...) 重载。
         var lines = text.Split('\n');
         var linePositions = new long[lines.Length + 1];
         var byteEnc = encoding ?? Encoding.UTF8;
@@ -153,6 +209,30 @@ public sealed class ChapterParser
             if (i < lines.Length - 1) pos += newlineBytes; // 行间必有 \n；最后一行后不一定有
         }
         linePositions[lines.Length] = pos;
+
+        return ParseLines(lines, linePositions, filePath, fileSize);
+    }
+
+    private Book ParseLines(string[] lines, long[] linePositions, string filePath, long fileSize)
+    {
+        long byteOffset = linePositions.Length > 0 ? linePositions[0] : 0;
+        var book = new Book
+        {
+            FilePath = filePath,
+            FileSize = fileSize,
+            Title = System.IO.Path.GetFileNameWithoutExtension(filePath),
+        };
+
+        // 尝试提取作者（只在前若干行里找，与全文 Multiline 匹配的首个结果一致）
+        for (int i = 0; i < lines.Length && i < 50; i++)
+        {
+            var authorMatch = ReAuthor.Match(lines[i]);
+            if (authorMatch.Success)
+            {
+                book.Author = authorMatch.Groups[1].Value.Trim();
+                break;
+            }
+        }
 
         // 当前卷 / 当前章
         var volumes = new List<Volume>();
@@ -222,7 +302,6 @@ public sealed class ChapterParser
             currentVolume.StartPosition = byteOffset;
             currentVolume.Chapters.Add(preChapter);
         }
-
         Chapter? currentChapter = null;
 
         for (int i = firstHeaderLineIdx; i < lines.Length; i++)
