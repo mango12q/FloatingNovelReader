@@ -50,6 +50,21 @@ public class PaginationServiceTests
     }
 
     [Fact]
+    public void Paginate_PagesConcat_EqualsOriginal()
+    {
+        // 分页结果拼接必须与原文字符级一致（不丢字、不重字、不乱序），含 \r\n / \n / 中英混排
+        var sb = new StringBuilder();
+        for (int i = 0; i < 500; i++)
+            sb.Append($"第 {i} 行 mixed English 内容123。\r\n");
+        sb.Append("结尾不带换行");
+        var text = sb.ToString();
+
+        var pages = _paginator.Paginate(text, "Microsoft YaHei UI", 18, 1.5, 476, 684);
+        var joined = string.Concat(pages.Select(p => text.Substring(p.Start, p.Length)));
+        Assert.Equal(text, joined);
+    }
+
+    [Fact]
     public void Paginate_Performance_Under200ms()
     {
         var sb = new StringBuilder();

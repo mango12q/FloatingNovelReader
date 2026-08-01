@@ -33,6 +33,8 @@ public sealed class TextEncoderDetector
             return Encoding.BigEndianUnicode; // UTF-16 BE
 
         // 2. Ude 启发式检测
+        // 注意：必须用默认的「替换回退」编码。若用 DecoderExceptionFallback，
+        // 文件中只要有一个坏字节（GBK/Big5 很常见），整本书的导入就会直接抛异常失败。
         try
         {
             var detector = new CharsetDetector();
@@ -40,7 +42,7 @@ public sealed class TextEncoderDetector
             detector.DataEnd();
             if (detector.Charset != null)
             {
-                var enc = Encoding.GetEncoding(detector.Charset, new EncoderExceptionFallback(), new DecoderExceptionFallback());
+                var enc = Encoding.GetEncoding(detector.Charset);
                 return enc;
             }
         }
@@ -49,8 +51,8 @@ public sealed class TextEncoderDetector
             // 忽略检测异常，走兜底
         }
 
-        // 3. 兜底 UTF-8
-        return new UTF8Encoding(false, true);
+        // 3. 兜底 UTF-8（替换回退，坏字节显示为 U+FFFD 而不是抛异常）
+        return new UTF8Encoding(false, false);
     }
 
     /// <summary>从文件检测编码（只读前 64KB 提速）</summary>

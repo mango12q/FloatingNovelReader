@@ -33,9 +33,6 @@ public partial class ReaderWindow : Window
         _windowBehavior.Attach(this);
         _windowBehavior.ApplyTopmost(true);
 
-        Loaded += OnLoaded;
-        Closing += OnClosing;
-
         _vm.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(ReaderViewModel.PageText) && !_isFadingPage && IsLoaded)

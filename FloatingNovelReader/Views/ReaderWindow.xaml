@@ -48,9 +48,10 @@
                                FontWeight="{Binding FontWeight}"
                                FontStyle="{Binding FontStyle}"
                                Foreground="{Binding ForegroundBrush}"
-                               TextWrapping="Wrap"
-                               Padding="12,8,12,8"
-                               LineStackingStrategy="BlockLineHeight"
+                                TextWrapping="Wrap"
+                                Padding="12,8,12,8"
+                                LineHeight="{Binding LineHeightPixels}"
+                                LineStackingStrategy="BlockLineHeight"
                                AutomationProperties.Name="小说正文"
                                AutomationProperties.HelpText="当前页面阅读文本内容"/>
                     </ScrollViewer>

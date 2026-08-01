@@ -11,6 +11,7 @@
         AutomationProperties.HelpText="配置阅读器显示、自动阅读、启动行为和快捷键">
     <Window.Resources>
         <conv:BackgroundPresetToStringConverter x:Key="BackgroundPresetConverter"/>
+        <conv:EnumDisplayNameConverter x:Key="EnumDisplayConverter"/>
     </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
@@ -114,10 +115,14 @@
                 <StackPanel Margin="12">
                     <TextBlock Text="启动时" Margin="0,8,0,4"/>
                     <ComboBox SelectedItem="{Binding Current.StartupBehavior}"
+                              ItemsSource="{Binding StartupOptions}"
                               AutomationProperties.Name="启动行为选择"
                               AutomationProperties.HelpText="选择程序启动时的行为">
-                        <ComboBoxItem Content="恢复上次阅读位置"/>
-                        <ComboBoxItem Content="打开书架"/>
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
                     </ComboBox>
 
                     <CheckBox Content="开机自动启动" IsChecked="{Binding Current.AutoStart}" Margin="0,16,0,0"/>
@@ -130,10 +135,14 @@
                     <StackPanel Margin="12">
                         <TextBlock Text="快捷键模式" Margin="0,8,0,4"/>
                         <ComboBox SelectedItem="{Binding Current.HotkeyMode}"
+                                  ItemsSource="{Binding HotkeyModeOptions}"
                                   AutomationProperties.Name="快捷键模式选择"
                                   AutomationProperties.HelpText="选择快捷键是全局生效还是仅在阅读窗口激活时生效">
-                            <ComboBoxItem Content="全局始终生效（可能与其他软件冲突）" />
-                            <ComboBoxItem Content="仅在本程序窗口激活时生效"/>
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
                         </ComboBox>
                         <TextBlock Text="建议在编辑文档时使用「仅在本程序窗口激活时生效」" 
                                    Foreground="Gray" FontSize="11" Margin="0,4,0,12"/>

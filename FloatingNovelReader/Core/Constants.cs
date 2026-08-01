@@ -53,27 +53,4 @@ public static class Constants
     // 防抖
     public const int HotkeyDebounceMs = 150;
     public const int ProgressSaveDebounceMs = 500;
-
-    // 数据库
-    public const string BooksTable = "Books";
-    public const string VolumesTable = "Volumes";
-    public const string ChaptersTable = "Chapters";
-    public const string ReadingProgressTable = "ReadingProgress";
-    public const string BookmarksTable = "Bookmarks";
-
-    // 事件名（EventBus）
-    public const string EvtBookImported = "BookImported";
-    public const string EvtBookRemoved = "BookRemoved";
-    public const string EvtProgressChanged = "ProgressChanged";
-    public const string EvtBookmarkAdded = "BookmarkAdded";
-    public const string EvtBookmarkRemoved = "BookmarkRemoved";
-    public const string EvtReadingModeChanged = "ReadingModeChanged";
-    public const string EvtTopmostChanged = "TopmostChanged";
-    public const string EvtClickThroughChanged = "ClickThroughChanged";
-    public const string EvtOpacityChanged = "OpacityChanged";
-    public const string EvtDisplaySettingsChanged = "DisplaySettingsChanged";
-    public const string EvtAutoReadIntervalChanged = "AutoReadIntervalChanged";
-    public const string EvtPageChanged = "PageChanged";
-    public const string EvtChapterChanged = "ChapterChanged";
-    public const string EvtBookChanged = "BookChanged";
 }

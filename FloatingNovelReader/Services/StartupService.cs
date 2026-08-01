@@ -15,18 +15,15 @@ public sealed class StartupService
     private readonly SettingsService _settings;
     private readonly DatabaseService _db;
     private readonly BookshelfService _bookshelf;
-    private readonly ReadingSessionService _session;
 
     public StartupService(
         SettingsService settings,
         DatabaseService db,
-        BookshelfService bookshelf,
-        ReadingSessionService session)
+        BookshelfService bookshelf)
     {
         _settings = settings;
         _db = db;
         _bookshelf = bookshelf;
-        _session = session;
     }
 
     public void Startup()

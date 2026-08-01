@@ -8,11 +8,18 @@ obj/
 
 ## 平台特定输出
 publish/
+dist/
 *.exe
 *.dll
 *.pdb
 *.deps.json
 *.runtimeconfig.json
+
+## 项目自定义构建目录（csproj 重定向的 bin/obj）
+.bin/
+.obj/
+*/.bin/
+*/.obj/
 
 ## IDE
 .vs/
