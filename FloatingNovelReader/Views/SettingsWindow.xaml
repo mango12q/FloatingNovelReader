@@ -27,10 +27,28 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
                         <TextBlock Text="字体族" Margin="0,8,0,4"/>
-                        <ComboBox x:Name="FontFamilyCombo" SelectedItem="{Binding Current.Display.FontFamily}"
+                        <ComboBox x:Name="FontFamilyCombo" SelectedValuePath="FamilyName"
+                                  SelectedValue="{Binding Current.Display.FontFamily}"
                                   ItemsSource="{Binding FontFamilies}"
                                   AutomationProperties.Name="字体族选择"
-                                  AutomationProperties.HelpText="选择阅读文本的字体"/>
+                                  AutomationProperties.HelpText="选择阅读文本的字体">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsInstalled}" Value="False">
+                                                        <Setter Property="Foreground" Value="Gray"/>
+                                                        <Setter Property="ToolTip" Value="字体未安装，选中后将使用系统默认字体渲染"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
                         <TextBlock Text="字体大小" Margin="0,8,0,4"/>
                         <Slider Minimum="12" Maximum="48" TickFrequency="1"
@@ -67,11 +85,6 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <StackPanel x:Name="CustomColorPanel" Orientation="Horizontal" Margin="0,4,0,0" Visibility="Collapsed">
-                            <TextBox x:Name="CustomColorHex" Width="100" Padding="4,2" Margin="0,0,6,0"
-                                     Text="{Binding Current.Display.CustomBackgroundColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Button Content="选择颜色" Padding="12,2" Click="OnPickCustomColor"/>
-                        </StackPanel>
 
                         <TextBlock Text="透明度" Margin="0,8,0,4">
                             <Run Text="← 透明"/>

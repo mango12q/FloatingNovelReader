@@ -133,16 +133,6 @@ public partial class ReaderWindow : Window
         finally { _isDragging = false; }
     }
 
-    private void OnBorderMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton != MouseButton.Left) return;
-        if (_windowBehavior.ClickThrough == ClickThroughState.ClickThrough) return;
-        var end = e.GetPosition(this);
-        if (Math.Abs(end.X - _dragStart.X) > DragThreshold || Math.Abs(end.Y - _dragStart.Y) > DragThreshold)
-            return;
-        _vm.NextPageCommand.Execute(null);
-    }
-
     private void OnBorderMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (_windowBehavior.ClickThrough == ClickThroughState.ClickThrough) return;
@@ -214,6 +204,9 @@ public partial class ReaderWindow : Window
 
     private void OnMenuChapterListClick(object sender, RoutedEventArgs e)
         => _vm.ShowChapterListCommand.Execute(null);
+
+    private void OnMenuAddBookmarkClick(object sender, RoutedEventArgs e)
+        => _vm.AddBookmarkCommand.Execute(null);
 
     private void OnMenuBookmarkListClick(object sender, RoutedEventArgs e)
         => _vm.ShowBookmarkListCommand.Execute(null);
