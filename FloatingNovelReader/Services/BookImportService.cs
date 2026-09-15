@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Helpers;
 using FloatingNovelReader.Models;
 using Serilog;
@@ -40,20 +41,33 @@ public sealed class BookImportService
     {
         Log.Information("开始导入 {File}", filePath);
 
-        // 1. 一次性读入字节（只读一遍，避免先采样检测再全文解码的双重 IO）
+        // 1. 先做大小守卫：整份文件会同时驻留托管堆（大对象堆），解析器还会再复制一份，
+        //    没有上限时一个超大 TXT 就能把进程撑爆，且 OOM 的报错完全没线索。
+        var fileBytes = new FileInfo(filePath).Length;
+        if (fileBytes == 0)
+            throw new InvalidOperationException("文件是空的，没有可导入的内容。");
+        if (fileBytes > Constants.MaxImportFileBytes)
+        {
+            throw new InvalidOperationException(
+                $"文件过大（{fileBytes / 1024.0 / 1024.0:F1} MB），" +
+                $"超过 {Constants.MaxImportFileBytes / 1024 / 1024} MB 的导入上限。" +
+                "请先把该 TXT 拆分成多个文件再导入。");
+        }
+
+        // 2. 一次性读入字节（只读一遍，避免先采样检测再全文解码的双重 IO）
         var bytes = File.ReadAllBytes(filePath);
 
-        // 2. 编码检测（容错：坏字节替换为 U+FFFD，不会导入失败）
+        // 3. 编码检测（容错：坏字节替换为 U+FFFD，不会导入失败）
         var encoding = _detector.Detect(bytes);
         Log.Debug("检测到编码 {Encoding} ({WebName})", encoding.EncodingName, encoding.WebName);
 
-        // 3. 卷章解析：直接在字节流上扫行，偏移精确，
+        // 4. 卷章解析：直接在字节流上扫行，偏移精确，
         //    不受容错解码（U+FFFD 替换）导致的重编码长度漂移影响
         var bomLength = _detector.GetPreambleLength(filePath, encoding);
         var book = _parser.Parse(bytes, filePath, encoding, bomLength);
         book.Encoding = encoding.WebName ?? encoding.EncodingName;
 
-        // 4. 入库
+        // 5. 入库
         var bookId = _db.InsertBook(book);
         book.Id = bookId;
 
@@ -63,7 +77,7 @@ public sealed class BookImportService
         // 更新总数
         _db.UpdateBookTotals(bookId, book.TotalChapters, book.TotalVolumes);
 
-        // 5. 初始化阅读进度
+        // 6. 初始化阅读进度
         var firstChapter = book.FlatChapters().FirstOrDefault();
         if (firstChapter != null)
         {

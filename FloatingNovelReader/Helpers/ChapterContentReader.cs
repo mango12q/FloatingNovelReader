@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 using FloatingNovelReader.Models;
+using FloatingNovelReader.Core;
+using Serilog;
 
 namespace FloatingNovelReader.Helpers;
 
@@ -14,9 +16,27 @@ public static class ChapterContentReader
 
     public static string Read(string filePath, Chapter chapter, string? encodingName)
     {
+        var start = chapter.StartPosition;
+        var end = chapter.EndPosition;
+
+        // 偏移来自数据库。被外部工具改坏、或导入中断时可能是负数/倒置，
+        // 而 `(int)(end - start)` 得到负数后 new byte[len] 会抛 OverflowException，
+        // 报错信息对用户完全没有线索 —— 这里早返回空内容并记日志。
+        if (start < 0 || end < start)
+        {
+            Log.Warning("章节偏移非法 (Start={Start}, End={End})，返回空内容: {Title}",
+                start, end, chapter.Title);
+            return string.Empty;
+        }
+
         using var fs = File.OpenRead(filePath);
-        fs.Seek(chapter.StartPosition, SeekOrigin.Begin);
-        int len = (int)(chapter.EndPosition - chapter.StartPosition);
+        fs.Seek(start, SeekOrigin.Begin);
+
+        // 夹到 int 范围，避免 >2GB 的偏移差在强转时溢出
+        var rawLen = end - start;
+        int len = rawLen > int.MaxValue ? int.MaxValue : (int)rawLen;
+        if (len == 0) return string.Empty;
+
         var buf = new byte[len];
         int total = 0;
         while (total < len)

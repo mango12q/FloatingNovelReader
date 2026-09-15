@@ -27,6 +27,19 @@ public sealed class BookshelfService
         _cache = _db.ListBooks(search, orderBy);
     }
 
+    /// <summary>
+    /// 更新封面颜色并持久化。
+    /// 只改内存对象的旧实现会被下一次 Reload（从数据库重建列表）覆盖掉，
+    /// 表现为"右键改色看似生效、一刷新就复原"。
+    /// </summary>
+    public void UpdateCoverColor(int bookId, string coverColor)
+    {
+        _db.UpdateBookCover(bookId, coverColor);
+        var cached = _cache.FirstOrDefault(b => b.Id == bookId);
+        if (cached != null) cached.CoverColor = coverColor;
+        Log.Information("封面颜色已更新 BookId={Id} Color={Color}", bookId, coverColor);
+    }
+
     public Book? GetBook(int id) => _cache.FirstOrDefault(b => b.Id == id);
 
     public Book? GetBookWithChapters(int id)

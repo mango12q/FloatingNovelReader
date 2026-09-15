@@ -30,6 +30,8 @@ public enum HotkeyAction
     AddBookmark,
     ShowBookmarkList,
     TogglePause,
+    SpeakFromHere,
+    StopSpeaking,
 }
 
 /// <summary>

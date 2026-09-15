@@ -25,4 +25,11 @@
     <ProjectReference Include="..\FloatingNovelReader\FloatingNovelReader.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- XAML 绑定守卫测试要在运行时读源码 XAML（编译产物里只有 BAML） -->
+    <None Include="..\FloatingNovelReader\Views\*.xaml"
+          Link="Views\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

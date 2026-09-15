@@ -23,10 +23,15 @@ namespace FloatingNovelReader;
 /// </summary>
 public partial class App : Application
 {
-    public static IServiceProvider Services { get; private set; } = null!;
+    private IServiceProvider _services = null!;
     private static Mutex? _singleInstanceMutex;
 
     private TrayIconService? _trayIcon;
+
+    // 退出时需要显式刷盘/释放的对象。以前它们只存在于 OnStartup 的局部变量里，
+    // 导致 OnExit 既没法 Dispose 全局键盘钩子，也没法把最后一次翻页的进度刷盘。
+    private Core.HotkeyManager? _hotkeyManager;
+    private ReadingSessionService? _readingSession;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -105,26 +110,28 @@ public partial class App : Application
         base.OnStartup(e);
 
         // 5. 初始化 DI 容器
-        Services = Bootstrapper.Build();
+        _services = Bootstrapper.Build();
 
         // 6. 初始化数据库
-        var db = Services.GetRequiredService<DatabaseService>();
+        var db = _services.GetRequiredService<DatabaseService>();
         db.Initialize();
 
         // 7. 启动全局热键（必须在创建窗口之前，让所有窗口都能立即收到热键事件）
-        var hotkey = Services.GetRequiredService<Core.HotkeyManager>();
-        hotkey.SetGlobalBindings(Services.GetRequiredService<SettingsService>().Current.Hotkeys.GlobalHotkeys);
-        hotkey.Mode = Services.GetRequiredService<SettingsService>().Current.HotkeyMode;
+        var hotkey = _services.GetRequiredService<Core.HotkeyManager>();
+        _hotkeyManager = hotkey;
+        _readingSession = _services.GetRequiredService<ReadingSessionService>();
+        hotkey.SetGlobalBindings(_services.GetRequiredService<SettingsService>().Current.Hotkeys.GlobalHotkeys);
+        hotkey.Mode = _services.GetRequiredService<SettingsService>().Current.HotkeyMode;
         hotkey.Start();
 
         // 桥接：HotkeyManager → IEventAggregator → ReaderViewModel
         // 这样热键事件不直接绑定到 View，而是通过强类型事件总线分发
-        var events = Services.GetRequiredService<IEventAggregator<IEventMarker>>();
+        var events = _services.GetRequiredService<IEventAggregator<IEventMarker>>();
         hotkey.HotkeyPressed += (s, action) =>
             events.Publish(new ReaderViewModel.HotkeyPressedEvent(action));
 
         // 设置变更时重新加载热键绑定, 让用户改完快捷键立刻生效
-        var settings = Services.GetRequiredService<SettingsService>();
+        var settings = _services.GetRequiredService<SettingsService>();
         settings.SettingsChanged += (s, args) =>
         {
             hotkey.SetGlobalBindings(settings.Current.Hotkeys.GlobalHotkeys);
@@ -133,21 +140,33 @@ public partial class App : Application
         };
 
         // 8. 创建系统托盘
-        _trayIcon = Services.GetRequiredService<TrayIconService>();
+        _trayIcon = _services.GetRequiredService<TrayIconService>();
         _trayIcon.Initialize();
 
         // 9. 根据启动设置打开窗口
-        var startupService = Services.GetRequiredService<StartupService>();
+        var startupService = _services.GetRequiredService<StartupService>();
         startupService.Startup();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // 1. 先把阅读进度刷盘：进度保存有 500ms 防抖，从托盘退出时最后一次翻页可能还没落库
+        try { _readingSession?.Flush(); }
+        catch (Exception ex) { Log.Error(ex, "退出前刷盘阅读进度失败"); }
+
+        // 2. 释放全局键盘钩子：不释放的话进程退出后钩子可能残留，继续拦截其他程序的按键
+        try { _hotkeyManager?.Dispose(); }
+        catch (Exception ex) { Log.Error(ex, "释放全局热键钩子失败"); }
+
+        _trayIcon?.Dispose();
+
+        // ReleaseMutex 在未持有互斥体时会抛 ApplicationException，退出路径不该因此崩掉
+        try { _singleInstanceMutex?.ReleaseMutex(); }
+        catch (Exception ex) { Log.Warning(ex, "释放单实例互斥体失败 (忽略)"); }
+        _singleInstanceMutex?.Dispose();
+
         Log.Information("应用退出");
         Log.CloseAndFlush();
-        _trayIcon?.Dispose();
-        _singleInstanceMutex?.ReleaseMutex();
-        _singleInstanceMutex?.Dispose();
         base.OnExit(e);
     }
 

@@ -16,6 +16,8 @@ public partial class BookmarkWindow : Window
         InitializeComponent();
         _vm = vm;
         DataContext = _vm;
+        // VM 只发"请求关闭"事件，窗口自己关自己：VM 不必反向持有 View
+        _vm.CloseRequested += (s, e) => Close();
         Loaded += (s, e) =>
         {
             if (_vm.Book != null)

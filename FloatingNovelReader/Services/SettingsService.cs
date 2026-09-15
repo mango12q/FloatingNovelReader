@@ -23,7 +23,13 @@ public sealed class SettingsService
     {
         _filePath = Constants.SettingsFile;
         _settings = Helpers.JsonHelper.LoadSettings(_filePath);
+        BackfillMissingHotkeys(_settings);
     }
+
+    /// <summary>
+    /// 把新增的快捷键动作补进配置（空值 = 未绑定），逻辑在 <see cref="Models.HotkeyConfig.EnsureAllActions"/>。
+    /// </summary>
+    private static void BackfillMissingHotkeys(AppSettings settings) => settings.Hotkeys.EnsureAllActions();
 
     public void Save()
     {
@@ -42,6 +48,7 @@ public sealed class SettingsService
     public void Reload()
     {
         _settings = Helpers.JsonHelper.LoadSettings(_filePath);
+        BackfillMissingHotkeys(_settings);
         SettingsChanged?.Invoke(this, EventArgs.Empty);
         Core.SelfInstaller.SetAutoStart(_settings.AutoStart);
     }
@@ -101,6 +108,8 @@ public sealed class SettingsService
         _settings.AutoStart = imported.AutoStart;
         _settings.Hotkeys = imported.Hotkeys;
         _settings.Display = imported.Display;
+        // 漏掉这一行会让"导入设置"静默丢掉整份朗读配置（白名单式合并的坑）
+        _settings.Tts = imported.Tts;
         _settings.AutoReadIntervalSec = imported.AutoReadIntervalSec;
         _settings.DefaultWidth = imported.DefaultWidth;
         _settings.DefaultHeight = imported.DefaultHeight;

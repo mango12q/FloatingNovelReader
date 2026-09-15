@@ -4,11 +4,10 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using FloatingNovelReader;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
 using FloatingNovelReader.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace FloatingNovelReader.Views;
@@ -17,17 +16,22 @@ public partial class ReaderWindow : Window
 {
     private readonly ReaderViewModel _vm;
     private readonly WindowBehaviorService _windowBehavior;
+    private readonly IWindowNavigator _navigator;
     private Point _dragStart;
     private bool _isDragging;
     private const double DragThreshold = 5.0;
     private readonly DispatcherTimer _idleCursorTimer;
     private bool _isFadingPage;
 
-    public ReaderWindow(ReaderViewModel vm, WindowBehaviorService windowBehavior)
+    public ReaderWindow(
+        ReaderViewModel vm,
+        WindowBehaviorService windowBehavior,
+        IWindowNavigator navigator)
     {
         InitializeComponent();
         _vm = vm;
         _windowBehavior = windowBehavior;
+        _navigator = navigator;
         DataContext = _vm;
 
         _windowBehavior.Attach(this);
@@ -35,10 +39,21 @@ public partial class ReaderWindow : Window
 
         _vm.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(ReaderViewModel.PageText) && !_isFadingPage && IsLoaded)
-                AnimatePageTextFade();
             if (e.PropertyName == nameof(ReaderViewModel.ReadingPercent) && IsLoaded)
                 UpdateProgressBarWidth();
+        };
+
+        // 页文本 / 页码现在归分页子 VM 所有，因此订阅它的变更
+        _vm.Pager.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ReaderPagerViewModel.PageText) && !_isFadingPage && IsLoaded)
+                AnimatePageTextFade();
+
+            // 底栏页码原本只在 OnLoaded 里写过一次，翻页后永远停在旧值
+            // （状态栏会更新，两个页码显示互相矛盾）。这里跟随 CurrentPage/TotalPages 更新。
+            if (IsLoaded && (e.PropertyName == nameof(ReaderPagerViewModel.CurrentPage)
+                             || e.PropertyName == nameof(ReaderPagerViewModel.TotalPages)))
+                BottomBar.SetInfo($"{_vm.Pager.CurrentPage + 1}/{_vm.Pager.TotalPages}", "");
         };
 
         _idleCursorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -61,11 +76,12 @@ public partial class ReaderWindow : Window
     {
         _vm.ApplyTextAreaSize(TextArea.ActualWidth, TextArea.ActualHeight);
         TopBar.SetInfo(_vm.BookTitle, _vm.ChapterTitle);
-        BottomBar.SetInfo($"{_vm.CurrentPage + 1}/{_vm.TotalPages}", "");
+        BottomBar.SetInfo($"{_vm.Pager.CurrentPage + 1}/{_vm.Pager.TotalPages}", "");
 
         if (_vm.CurrentBook != null)
         {
-            var p = App.Services.GetRequiredService<DatabaseService>().GetProgress(_vm.CurrentBook.Id);
+            // 窗口几何来自 VM 已经读到的进度，View 不再自己解析 DatabaseService
+            var p = _vm.SavedProgress;
             if (p != null)
             {
                 if (p.WindowWidth > 0) Width = p.WindowWidth;
@@ -196,8 +212,7 @@ public partial class ReaderWindow : Window
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
-        var w = App.Services.GetRequiredService<SettingsWindow>();
-        w.ShowDialog();
+        _navigator.ShowSettingsDialog(this);
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Hide();
@@ -210,4 +225,10 @@ public partial class ReaderWindow : Window
 
     private void OnMenuBookmarkListClick(object sender, RoutedEventArgs e)
         => _vm.ShowBookmarkListCommand.Execute(null);
+
+    private void OnMenuSpeakFromHereClick(object sender, RoutedEventArgs e)
+        => _vm.SpeakFromHereCommand.Execute(null);
+
+    private void OnMenuStopSpeakingClick(object sender, RoutedEventArgs e)
+        => _vm.StopSpeakingCommand.Execute(null);
 }

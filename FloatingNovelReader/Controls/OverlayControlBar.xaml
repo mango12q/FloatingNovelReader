@@ -38,6 +38,9 @@
                             <MenuItem Header="添加书签" Click="OnMenuAddBookmark"/>
                             <MenuItem Header="书签列表" Click="OnMenuBookmarkList"/>
                             <Separator/>
+                            <MenuItem Header="从当前开始朗读" Click="OnMenuSpeakFromHere"/>
+                            <MenuItem Header="停止朗读" Click="OnMenuStopSpeaking"/>
+                            <Separator/>
                             <MenuItem Header="设置..." Click="OnMenuSettings"/>
                         </ContextMenu>
                     </Button.ContextMenu>

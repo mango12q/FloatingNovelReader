@@ -10,6 +10,8 @@ public partial class OverlayControlBar : UserControl
     public event RoutedEventHandler? MenuChapterListClick;
     public event RoutedEventHandler? MenuAddBookmarkClick;
     public event RoutedEventHandler? MenuBookmarkListClick;
+    public event RoutedEventHandler? MenuSpeakFromHereClick;
+    public event RoutedEventHandler? MenuStopSpeakingClick;
     public event RoutedEventHandler? MenuSettingsClick;
 
     public OverlayControlBar()
@@ -50,6 +52,12 @@ public partial class OverlayControlBar : UserControl
 
     private void OnMenuBookmarkList(object sender, RoutedEventArgs e)
         => MenuBookmarkListClick?.Invoke(this, e);
+
+    private void OnMenuSpeakFromHere(object sender, RoutedEventArgs e)
+        => MenuSpeakFromHereClick?.Invoke(this, e);
+
+    private void OnMenuStopSpeaking(object sender, RoutedEventArgs e)
+        => MenuStopSpeakingClick?.Invoke(this, e);
 
     private void OnMenuSettings(object sender, RoutedEventArgs e)
         => MenuSettingsClick?.Invoke(this, e);

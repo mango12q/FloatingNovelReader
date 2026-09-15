@@ -1,29 +1,32 @@
 using System;
-using FloatingNovelReader;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
-using FloatingNovelReader.Views;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace FloatingNovelReader.Services;
 
 /// <summary>
 /// 启动服务：根据用户设置决定打开阅读窗口还是书架。
+/// 只依赖 <see cref="IWindowNavigator"/>，不再认识 ReaderViewModel / ReaderWindow / BookshelfWindow
+/// （体检报告 §1.3 的 Service → View 反向依赖）。
 /// </summary>
 public sealed class StartupService
 {
     private readonly SettingsService _settings;
     private readonly DatabaseService _db;
     private readonly BookshelfService _bookshelf;
+    private readonly IWindowNavigator _navigator;
 
     public StartupService(
         SettingsService settings,
         DatabaseService db,
-        BookshelfService bookshelf)
+        BookshelfService bookshelf,
+        IWindowNavigator navigator)
     {
         _settings = settings;
         _db = db;
         _bookshelf = bookshelf;
+        _navigator = navigator;
     }
 
     public void Startup()
@@ -38,16 +41,12 @@ public sealed class StartupService
                 if (book != null)
                 {
                     Log.Information("恢复上次阅读: {Book}", book.Title);
-                    var readerVm = App.Services.GetRequiredService<ViewModels.ReaderViewModel>();
-                    readerVm.LoadBook(book, progress);
-                    var w = App.Services.GetRequiredService<ReaderWindow>();
-                    w.Show();
+                    _navigator.OpenReader(book, progress);
                     return;
                 }
             }
         }
         // 兜底：显示书架
-        var shelf = App.Services.GetRequiredService<BookshelfWindow>();
-        shelf.Show();
+        _navigator.ShowBookshelf();
     }
 }

@@ -3,10 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Windows;
-using FloatingNovelReader;
 using FloatingNovelReader.Core;
-using FloatingNovelReader.Views;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace FloatingNovelReader.Services;
@@ -14,10 +11,14 @@ namespace FloatingNovelReader.Services;
 /// <summary>
 /// 系统托盘。最小化时隐藏到托盘，右键菜单显示 / 书架 / 设置 / 退出。
 /// 为了避免引入额外 NuGet 依赖，使用 System.Windows.Forms.NotifyIcon 实现托盘。
+/// 窗口操作全部走 <see cref="IWindowNavigator"/>，不再反向解析 WPF 窗口。
 /// </summary>
 public sealed class TrayIconService : IDisposable
 {
+    private readonly IWindowNavigator _navigator;
     private System.Windows.Forms.NotifyIcon? _notifyIcon;
+
+    public TrayIconService(IWindowNavigator navigator) => _navigator = navigator;
 
     public void Initialize()
     {
@@ -68,47 +69,11 @@ public sealed class TrayIconService : IDisposable
         return SystemIcons.Application;
     }
 
-    public void ShowReader()
-    {
-        try
-        {
-            var w = App.Services.GetRequiredService<ReaderWindow>();
-            if (!w.IsInitialized) w.InitializeComponent();
-            w.Show();
-            w.Activate();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "显示阅读窗口失败");
-        }
-    }
+    public void ShowReader() => _navigator.ShowReader();
 
-    public void ShowBookshelf()
-    {
-        try
-        {
-            var w = App.Services.GetRequiredService<BookshelfWindow>();
-            w.Show();
-            w.Activate();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "显示书架失败");
-        }
-    }
+    public void ShowBookshelf() => _navigator.ShowBookshelf();
 
-    public void ShowSettings()
-    {
-        try
-        {
-            var w = App.Services.GetRequiredService<SettingsWindow>();
-            w.ShowDialog();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "显示设置失败");
-        }
-    }
+    public void ShowSettings() => _navigator.ShowSettingsDialog();
 
     public void Exit()
     {
