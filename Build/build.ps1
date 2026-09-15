@@ -10,7 +10,7 @@
       - 发布两种打包产物（Framework-Dependent，需 .NET 8 桌面运行时）：
         1. 单文件版：floating-novel-reader-singlefile-win-x64.exe
            单个 EXE，双击即用，首次运行会询问是否安装
-        2. 便携版：  floating-novel-reader-portable-win-x64-*.zip
+        2. 便携版：  floating-novel-reader-portable-win-x64.zip
            解压即用（EXE + DLL 目录），含 portable.mode 标记，不弹安装提示
 #>
 
@@ -72,7 +72,6 @@ else {
 
 # 4. 发布
 if (-not $SkipPublish) {
-    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $publishRoot = Join-Path $ProjectRoot "publish"
     $singleDir  = Join-Path $publishRoot "$Rid-singlefile"
     $portableDir = Join-Path $publishRoot "$Rid-portable"
@@ -103,7 +102,9 @@ if (-not $SkipPublish) {
     if ($LASTEXITCODE -ne 0) { throw "便携版发布失败" }
     New-Item -ItemType File -Path (Join-Path $portableDir "portable.mode") -Force | Out-Null
 
-    $portableZip = Join-Path $publishRoot "floating-novel-reader-portable-$Rid-$timestamp.zip"
+    # 文件名不带时间戳：与 README 的下载表、GitHub Release 的附件名保持完全一致，
+    # 这样发布时不需要再手动改名（New-Zip 会覆盖旧文件）
+    $portableZip = Join-Path $publishRoot "floating-novel-reader-portable-$Rid.zip"
     New-Zip -SourceDir $portableDir -ZipPath $portableZip
 
     # 4.3 产物校验
@@ -115,7 +116,7 @@ if (-not $SkipPublish) {
 Write-Host "`n==> 完成！" -ForegroundColor Green
 Write-Host "    产物在 publish/ 目录下：" -ForegroundColor Gray
 Write-Host "      单文件版: $Rid-singlefile/floating-novel-reader-singlefile-$Rid.exe" -ForegroundColor Gray
-Write-Host "      便携版:   floating-novel-reader-portable-$Rid-*.zip (解压即用，需 .NET 8 桌面运行时)" -ForegroundColor Gray
+Write-Host "      便携版:   floating-novel-reader-portable-$Rid.zip (解压即用，需 .NET 8 桌面运行时)" -ForegroundColor Gray
 
 }
 finally {
