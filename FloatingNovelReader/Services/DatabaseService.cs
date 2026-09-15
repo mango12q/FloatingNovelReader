@@ -18,6 +18,12 @@ public sealed class DatabaseService
 {
     private readonly string _dbPath;
 
+    // 进程内写闸：SQLite 是单写者模型，翻页防抖保存（每 500ms）与后台导入可能并发写，
+    // 只靠连接串上的 busy timeout 硬等，导入事务较长时仍会超时抛 SqliteException，
+    // 而调用方 catch 会把它吞掉 —— 表现为"阅读进度悄悄丢失"。
+    // 所有写方法经 WriteLease 串行化；读方法不受影响（配合 WAL，读不阻塞写）。
+    private readonly SemaphoreSlim _writeGate = new(1, 1);
+
     // Default Timeout: SQLite 单写者模型下，并发写默认立即抛 SQLITE_BUSY，
     // 设置 busy timeout 后改为等待重试（进度防抖保存与后台读并发时尤其需要）
     private string ConnectionString => $"Data Source={_dbPath};Default Timeout=2";
@@ -37,6 +43,10 @@ public sealed class DatabaseService
         using var conn = OpenConnection();
         // 关键: SQLite 默认不开启外键约束；不开的话 ON DELETE CASCADE 形同虚设
         ExecNonQuery(conn, "PRAGMA foreign_keys = ON;");
+
+        // WAL: 读不阻塞写、写不阻塞读。翻页时的进度保存不再和书架/目录读取互相等待，
+        // 是缓解 SQLITE_BUSY 的第一道措施（第二道是上面的 _writeGate）。journal_mode 持久化在库文件上。
+        ExecNonQuery(conn, "PRAGMA journal_mode = WAL;");
 
         ExecNonQuery(conn, @"
 CREATE TABLE IF NOT EXISTS Books (
@@ -113,6 +123,7 @@ CREATE TABLE IF NOT EXISTS Bookmarks (
 
     public int InsertBook(Book book)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
@@ -135,6 +146,7 @@ SELECT last_insert_rowid();";
 
     public void UpdateBookTotals(int bookId, int totalChapters, int totalVolumes)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE Books SET TotalChapters=$tc, TotalVolumes=$tv WHERE Id=$id;";
@@ -146,6 +158,7 @@ SELECT last_insert_rowid();";
 
     public void TouchLastReadTime(int bookId)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE Books SET LastReadTime=$t WHERE Id=$id;";
@@ -156,9 +169,25 @@ SELECT last_insert_rowid();";
 
     public void DeleteBook(int bookId)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "DELETE FROM Books WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$id", bookId);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// 只更新封面颜色。书架右键"修改封面颜色"以前只改内存对象、随后被 Reload 覆盖，
+    /// 导致改色看似生效、一刷新就复原。
+    /// </summary>
+    public void UpdateBookCover(int bookId, string coverColor)
+    {
+        using var _gate = new WriteLease(_writeGate);
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE Books SET CoverColor=$c WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$c", coverColor);
         cmd.Parameters.AddWithValue("$id", bookId);
         cmd.ExecuteNonQuery();
     }
@@ -222,6 +251,7 @@ SELECT last_insert_rowid();";
 
     public void InsertVolumes(int bookId, IEnumerable<Volume> volumes)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var tx = conn.BeginTransaction();
         foreach (var v in volumes)
@@ -344,6 +374,7 @@ SELECT last_insert_rowid();";
 
     public void SaveProgress(ReadingProgress p)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
@@ -376,6 +407,7 @@ ON CONFLICT(BookId) DO UPDATE SET
     /// </summary>
     public void SaveReadingPosition(int bookId, int chapterId, int pageNumber, DateTime lastUpdated)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
@@ -398,6 +430,7 @@ ON CONFLICT(BookId) DO UPDATE SET
     /// </summary>
     public void SaveWindowGeometry(int bookId, double left, double top, double width, double height, double opacity)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
@@ -459,6 +492,7 @@ WHERE BookId = $bookId;";
 
     public int AddBookmark(Bookmark b)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
@@ -476,6 +510,7 @@ SELECT last_insert_rowid();";
 
     public void DeleteBookmark(int id)
     {
+        using var _gate = new WriteLease(_writeGate);
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "DELETE FROM Bookmarks WHERE Id=$id;";
@@ -512,6 +547,21 @@ SELECT last_insert_rowid();";
     /// 打开一个 Sqlite 连接并自动开启外键约束。
     /// 必须用此方法而非直接 new SqliteConnection，否则 ON DELETE CASCADE 不会生效。
     /// </summary>
+    /// <summary>
+    /// 写闸的租约。声明在最前面，由 <c>using var</c> 在方法结束时释放；
+    /// 由于 using 局部变量按声明逆序释放，OpenConnection() 拿到的连接会先关闭、再释放写闸。
+    /// </summary>
+    private readonly struct WriteLease : IDisposable
+    {
+        private readonly SemaphoreSlim _gate;
+        internal WriteLease(SemaphoreSlim gate)
+        {
+            _gate = gate;
+            gate.Wait();
+        }
+        public void Dispose() => _gate.Release();
+    }
+
     private SqliteConnection OpenConnection()
     {
         var conn = new SqliteConnection(ConnectionString);

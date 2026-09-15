@@ -2,11 +2,9 @@ using System;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FloatingNovelReader;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
 
 namespace FloatingNovelReader.ViewModels;
 
@@ -14,14 +12,22 @@ public sealed partial class BookmarkListViewModel : ObservableObject
 {
     private readonly BookmarkService _bookmark;
     private readonly DatabaseService _db;
+    private readonly IPageAdvancer _reader;
+
+    /// <summary>请求关闭承载本 VM 的窗口；由 View 订阅后 Close()。</summary>
+    public event EventHandler? CloseRequested;
 
     [ObservableProperty] private Book? _book;
     public ObservableCollection<Bookmark> Items { get; } = new();
 
-    public BookmarkListViewModel(BookmarkService bookmark, DatabaseService db)
+    public BookmarkListViewModel(
+        BookmarkService bookmark,
+        DatabaseService db,
+        IPageAdvancer reader)
     {
         _bookmark = bookmark;
         _db = db;
+        _reader = reader;
     }
 
     public void Load(Book book)
@@ -35,10 +41,8 @@ public sealed partial class BookmarkListViewModel : ObservableObject
     public void Jump(Bookmark? b)
     {
         if (b == null) return;
-        var readerVm = App.Services.GetRequiredService<ReaderViewModel>();
-        readerVm.JumpToProgress(b.ChapterId, b.PageNumber);
-        var w = App.Services.GetRequiredService<Views.BookmarkWindow>();
-        w.Close();
+        _reader.JumpToProgress(b.ChapterId, b.PageNumber);
+        CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

@@ -19,6 +19,9 @@ public static class Constants
     public static string DbFile => System.IO.Path.Combine(AppDataDir, "library.db");
     public static string SettingsFile => System.IO.Path.Combine(AppDataDir, "settings.json");
 
+    /// <summary>朗读音频缓存目录（DiskOptional 模式下后台合成的 mp3 落在这里）。</summary>
+    public static string TtsCacheDir => System.IO.Path.Combine(AppDataDir, "TtsCache");
+
     // 窗口尺寸默认值
     public const double DefaultWidth = 500;
     public const double DefaultHeight = 700;
@@ -53,4 +56,8 @@ public static class Constants
     // 防抖
     public const int HotkeyDebounceMs = 150;
     public const int ProgressSaveDebounceMs = 500;
+
+    // 导入上限。Import() 会把整份文件读进内存、解析器再复制一份，
+    // 不设上限时一个超大 TXT 就能把进程撑爆（而且报错完全没线索）。
+    public const long MaxImportFileBytes = 200L * 1024 * 1024; // 200 MB
 }

@@ -45,6 +45,7 @@
 
     <!-- 全局快捷键钩子 -->
     <PackageReference Include="MouseKeyHook" Version="5.7.1" />
+    <PackageReference Include="NAudio" Version="2.2.0" />
 
     <!-- 结构化日志 -->
     <PackageReference Include="Serilog" Version="4.0.0" />

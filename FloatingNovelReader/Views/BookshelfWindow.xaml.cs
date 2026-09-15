@@ -4,22 +4,23 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using FloatingNovelReader;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
 using FloatingNovelReader.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace FloatingNovelReader.Views;
 
 public partial class BookshelfWindow : Window
 {
     private readonly BookshelfViewModel _vm;
+    private readonly IWindowNavigator _navigator;
 
-    public BookshelfWindow(BookshelfViewModel vm)
+    public BookshelfWindow(BookshelfViewModel vm, IWindowNavigator navigator)
     {
         InitializeComponent();
         _vm = vm;
+        _navigator = navigator;
         Loaded += OnFirstLoaded;
         Closed += (s, e) => { /* 不退出进程 */ };
     }
@@ -82,9 +83,7 @@ public partial class BookshelfWindow : Window
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
-        var w = App.Services.GetRequiredService<SettingsWindow>();
-        w.Owner = this;
-        w.ShowDialog();
+        _navigator.ShowSettingsDialog(this);
     }
 
     private void OnSortChanged(object sender, SelectionChangedEventArgs e)

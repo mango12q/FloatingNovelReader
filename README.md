@@ -201,7 +201,7 @@
 | 事件总线 | `IEventAggregator<T>`（自研） | 强类型事件，编译期检查 |
 | 编码检测 | Ude.NetStandard 1.2.0 | BOM + 启发式检测（GBK/UTF-8/UTF-16/Big5…），坏字节容错替换 |
 | 日志 | Serilog 4.0.0 | 按日滚动，保留 30 天，`%LocalAppData%\FloatingNovelReader\Logs\` |
-| 单元测试 | xUnit 2.9.2 | 86 个测试用例 |
+| 单元测试 | xUnit 2.9.2 | 216 个测试用例 |
 
 ---
 

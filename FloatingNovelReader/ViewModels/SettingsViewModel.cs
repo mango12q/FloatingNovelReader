@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
 
@@ -13,6 +14,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly SettingsService _settings;
     private readonly AutoReadService _autoRead;
     private readonly Helpers.FontHelper _fontHelper;
+    private readonly IDialogService _dialogs;
 
     [ObservableProperty] private AppSettings _current;
     [ObservableProperty] private int _autoReadIntervalSec;
@@ -27,11 +29,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     public SettingsViewModel(
         SettingsService settings,
         AutoReadService autoRead,
-        Helpers.FontHelper fontHelper)
+        Helpers.FontHelper fontHelper,
+        IDialogService dialogs)
     {
         _settings = settings;
         _autoRead = autoRead;
         _fontHelper = fontHelper;
+        _dialogs = dialogs;
         _current = settings.Current;
         _autoReadIntervalSec = Current.AutoReadIntervalSec;
 
@@ -60,12 +64,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public void ResetToDefault()
     {
-        var result = System.Windows.MessageBox.Show(
+        var result = _dialogs.Ask(
             "确定要将所有设置恢复为默认值吗？\n\n这将重置显示、快捷键、自动阅读等所有设置。",
-            "恢复默认设置",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Question);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+            "恢复默认设置");
+        if (result != DialogChoice.Yes) return;
 
         _settings.Reset();
         Current = _settings.Current;

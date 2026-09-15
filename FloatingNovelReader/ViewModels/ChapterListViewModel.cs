@@ -1,30 +1,39 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FloatingNovelReader;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
 
 namespace FloatingNovelReader.ViewModels;
 
 /// <summary>
 /// 章节目录弹窗 VM。
+/// 通过 <see cref="IPageAdvancer"/> 驱动跳转、通过 <see cref="CloseRequested"/> 请求关闭自己，
+/// 不再反向解析 ReaderViewModel / ChapterListWindow（体检报告 §1.1）。
 /// </summary>
 public sealed partial class ChapterListViewModel : ObservableObject
 {
     private readonly BookshelfService _bookshelf;
     private readonly ReadingSessionService _session;
+    private readonly IPageAdvancer _reader;
+
+    /// <summary>请求关闭承载本 VM 的窗口；由 View 订阅后 Close()。</summary>
+    public event EventHandler? CloseRequested;
 
     [ObservableProperty] private Book? _book;
     public ObservableCollection<Volume> Volumes { get; } = new();
 
-    public ChapterListViewModel(BookshelfService bookshelf, ReadingSessionService session)
+    public ChapterListViewModel(
+        BookshelfService bookshelf,
+        ReadingSessionService session,
+        IPageAdvancer reader)
     {
         _bookshelf = bookshelf;
         _session = session;
+        _reader = reader;
     }
 
     /// <summary>
@@ -50,9 +59,7 @@ public sealed partial class ChapterListViewModel : ObservableObject
     public void JumpTo(Chapter? chapter)
     {
         if (chapter == null) return;
-        var readerVm = App.Services.GetRequiredService<ReaderViewModel>();
-        readerVm.JumpToChapter(chapter, 0);
-        var w = App.Services.GetRequiredService<Views.ChapterListWindow>();
-        w.Close();
+        _reader.JumpToChapter(chapter, 0);
+        CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

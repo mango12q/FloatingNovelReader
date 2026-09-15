@@ -29,6 +29,9 @@ public sealed class AppSettings
     public HotkeyConfig Hotkeys { get; set; } = new();
     public DisplaySettings Display { get; set; } = new();
 
+    /// <summary>朗读设置（edge-tts）。</summary>
+    public TtsSettings Tts { get; set; } = new();
+
     public int AutoReadIntervalSec { get; set; } = Constants.DefaultAutoReadIntervalSec;
 
     public double DefaultWidth { get; set; } = Constants.DefaultWidth;

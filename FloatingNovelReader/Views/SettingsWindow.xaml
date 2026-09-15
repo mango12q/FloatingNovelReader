@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:FloatingNovelReader.Controls"
         xmlns:conv="clr-namespace:FloatingNovelReader.Converters"
+        xmlns:views="clr-namespace:FloatingNovelReader.Views"
         Title="设置"
         Width="600" Height="580"
         WindowStartupLocation="CenterOwner"
@@ -179,6 +180,11 @@
                         </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
+            </TabItem>
+
+            <!-- 朗读设置 -->
+            <TabItem Header="朗读">
+                <views:TtsSettingsTab x:Name="TtsTab"/>
             </TabItem>
         </TabControl>
 

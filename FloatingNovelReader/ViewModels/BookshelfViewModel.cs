@@ -1,13 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FloatingNovelReader;
+using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Serilog;
 
@@ -18,6 +16,8 @@ public sealed partial class BookshelfViewModel : ObservableObject
     private readonly BookshelfService _bookshelf;
     private readonly BookImportService _importer;
     private readonly SettingsService _settings;
+    private readonly IWindowNavigator _navigator;
+    private readonly IDialogService _dialogs;
 
     [ObservableProperty] private string _searchText = string.Empty;
     [ObservableProperty] private string _sortBy = "LastReadTime";
@@ -29,11 +29,15 @@ public sealed partial class BookshelfViewModel : ObservableObject
     public BookshelfViewModel(
         BookshelfService bookshelf,
         BookImportService importer,
-        SettingsService settings)
+        SettingsService settings,
+        IWindowNavigator navigator,
+        IDialogService dialogs)
     {
         _bookshelf = bookshelf;
         _importer = importer;
         _settings = settings;
+        _navigator = navigator;
+        _dialogs = dialogs;
     }
 
     [RelayCommand]
@@ -63,7 +67,7 @@ public sealed partial class BookshelfViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"导入失败：{path}\n{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                _dialogs.Error($"导入失败：{path}\n{ex.Message}", "错误");
             }
         }
         Refresh();
@@ -86,19 +90,19 @@ public sealed partial class BookshelfViewModel : ObservableObject
                   "[是] 删除数据库记录 + 删除源文件 (彻底移除, 不可恢复)\n" +
                   "[否] 仅删除数据库记录, 源文件保留\n" +
                   "[取消] 放弃操作";
-        var r = MessageBox.Show(msg, "确认移除", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (r == MessageBoxResult.Cancel) return;
-        var deleteFile = r == MessageBoxResult.Yes;
+        var r = _dialogs.AskWithCancel(msg, "确认移除");
+        if (r == DialogChoice.Cancel) return;
+        var deleteFile = r == DialogChoice.Yes;
         try
         {
             _bookshelf.Remove(book.Id, deleteFile);
             Books.Remove(book);
             var extra = deleteFile ? "，并删除源文件" : "";
-            MessageBox.Show($"已移除《{book.Title}》{extra}。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            _dialogs.Info($"已移除《{book.Title}》{extra}。", "完成");
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"移除失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogs.Error($"移除失败：{ex.Message}", "错误");
         }
     }
 
@@ -106,14 +110,9 @@ public sealed partial class BookshelfViewModel : ObservableObject
     public void Open(Book? book)
     {
         if (book == null) return;
-        var readerVm = App.Services.GetRequiredService<ReaderViewModel>();
         var fullBook = _bookshelf.GetBookWithChapters(book.Id);
         if (fullBook == null) return;
-        readerVm.LoadBook(fullBook);
-
-        var w = App.Services.GetRequiredService<Views.ReaderWindow>();
-        w.Show();
-        w.Activate();
+        _navigator.OpenReader(fullBook);
     }
 
     [RelayCommand]
@@ -129,9 +128,10 @@ public sealed partial class BookshelfViewModel : ObservableObject
         // 简化版：循环预设
         var colors = new[] { "#6C8CFF", "#FF6B6B", "#51CF66", "#FCC419", "#845EF7", "#20C997", "#FFA94D" };
         var current = Array.IndexOf(colors, book.CoverColor);
-        book.CoverColor = colors[(current + 1) % colors.Length];
-        // 简单做法：直接更新 DB（增量）
-        // 这里暂不实现 UpdateBookCover，避免引入过多代码
+        var next = colors[(current + 1) % colors.Length];
+        // 先写库：否则 Refresh() 从数据库重载列表时，会把内存里的改色覆盖回旧值
+        _bookshelf.UpdateCoverColor(book.Id, next);
+        // Book 没有实现 INotifyPropertyChanged，只能靠重建集合让 UI 刷新
         Refresh();
     }
 }

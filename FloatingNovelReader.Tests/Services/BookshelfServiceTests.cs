@@ -102,9 +102,31 @@ public class BookshelfServiceTests : IDisposable
         Assert.Null(_bookshelf.GetBookWithChapters(book.Id));
     }
 
+    /// <summary>
+    /// 回归测试：右键"修改封面颜色"必须落库。
+    /// 修复前 ChangeCoverColor 只改内存对象、紧接着 Refresh() 从数据库重载，
+    /// 改色会被旧值覆盖 —— 表现为"看似改了、一刷新就复原"。
+    /// </summary>
+    [Fact]
+    public async System.Threading.Tasks.Task UpdateCoverColor_PersistsAcrossReload()
+    {
+        var book = await _importer.ImportAsync(_tmpFile);
+        _bookshelf.Reload();
+
+        _bookshelf.UpdateCoverColor(book.Id, "#FF6B6B");
+        _bookshelf.Reload();   // 这一步在修复前会把改色覆盖回 #6C8CFF
+
+        Assert.Equal("#FF6B6B", _bookshelf.GetBook(book.Id)!.CoverColor);
+        Assert.Equal("#FF6B6B", _db.ListBooks().Single(b => b.Id == book.Id).CoverColor);
+    }
+
     public void Dispose()
     {
-        try { if (File.Exists(_dbFile)) File.Delete(_dbFile); } catch { }
+        // WAL 模式会额外产生 -wal / -shm 边车文件，一起清掉
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+        {
+            try { if (File.Exists(_dbFile + suffix)) File.Delete(_dbFile + suffix); } catch { }
+        }
         try { if (File.Exists(_tmpFile)) File.Delete(_tmpFile); } catch { }
     }
 }

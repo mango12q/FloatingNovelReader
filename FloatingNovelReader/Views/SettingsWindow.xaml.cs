@@ -17,12 +17,20 @@ namespace FloatingNovelReader.Views;
 public partial class SettingsWindow : Window
 {
     private readonly SettingsViewModel _vm;
+    private readonly SettingsService _settingsService;
+    private readonly TtsPanelViewModel _ttsPanel;
 
-    public SettingsWindow(SettingsViewModel vm)
+    public SettingsWindow(
+        SettingsViewModel vm,
+        SettingsService settingsService,
+        TtsPanelViewModel ttsPanel)
     {
         InitializeComponent();
         _vm = vm;
+        _settingsService = settingsService;
+        _ttsPanel = ttsPanel;
         DataContext = _vm;
+        TtsTab.DataContext = _ttsPanel;
         Loaded += OnLoadedInternal;
     }
 
@@ -34,6 +42,9 @@ public partial class SettingsWindow : Window
         HotkeyList.ItemsSource = list;
 
         ApplyHighContrast();
+
+        // 声音列表异步加载：缓存命中几乎瞬时；联网失败会退回内置列表并在界面提示
+        _ = _ttsPanel.LoadVoicesCommand.ExecuteAsync(null);
     }
 
     private void ApplyHighContrast()
@@ -60,6 +71,8 @@ public partial class SettingsWindow : Window
         "AddBookmark" => "添加书签",
         "ShowBookmarkList" => "书签列表",
         "TogglePause" => "暂停",
+        "SpeakFromHere" => "从当前开始朗读",
+        "StopSpeaking" => "停止朗读",
         _ => action
     };
 
@@ -77,6 +90,7 @@ public partial class SettingsWindow : Window
     private void OnCancel(object sender, RoutedEventArgs e)
     {
         _vm.Cancel();
+        _ttsPanel.Refresh();   // Reload 换掉了 Current，把朗读页拉回实际设置
         DialogResult = false;
         Close();
     }
@@ -84,13 +98,14 @@ public partial class SettingsWindow : Window
     private void OnReset(object sender, RoutedEventArgs e)
     {
         _vm.ResetToDefaultCommand.Execute(null);
+        _ttsPanel.Refresh();   // Reset 也换掉了 Current
     }
 
     private void OnExport(object sender, RoutedEventArgs e)
     {
         try
         {
-            var settingsSvc = App.Services.GetRequiredService<SettingsService>();
+            var settingsSvc = _settingsService;
             var suggestedDir = System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                 "FloatingNovelReader_Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
@@ -125,7 +140,7 @@ public partial class SettingsWindow : Window
             };
             if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
 
-            var settingsSvc = App.Services.GetRequiredService<SettingsService>();
+            var settingsSvc = _settingsService;
             settingsSvc.ImportSettings(dlg.SelectedPath);
             _vm.Current = settingsSvc.Current;
             _vm.AutoReadIntervalSec = settingsSvc.Current.AutoReadIntervalSec;
