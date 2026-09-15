@@ -30,6 +30,14 @@
     <None Include="..\FloatingNovelReader\Views\*.xaml"
           Link="Views\%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- 发布脚本编码守卫 + 产物名一致性守卫要读源文件 -->
+    <None Include="..\Build\build.ps1"
+          Link="Build\build.ps1"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\README.md"
+          Link="Build\README.md"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
