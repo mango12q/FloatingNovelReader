@@ -83,7 +83,7 @@
 | 文件 | 说明 |
 |------|------|
 | `floating-novel-reader-singlefile-win-x64.exe` | **单文件版**：单个 EXE（约 4 MB），双击即用，首次运行询问是否安装 |
-| `floating-novel-reader-portable-win-x64-*.zip` | **便携版**：解压即用（EXE + DLL 目录，约 2 MB），内含 `portable.mode` 标记，不弹安装提示 |
+| `floating-novel-reader-portable-win-x64.zip` | **便携版**：解压即用（EXE + DLL 目录，约 2 MB），内含 `portable.mode` 标记，不弹安装提示 |
 
 ### 运行环境
 
