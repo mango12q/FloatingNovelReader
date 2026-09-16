@@ -106,6 +106,8 @@ public static class JsonHelper
         // 给它们默认全局组合键会在所有程序里抢占按键；这里只保证它们在
         // "设置 → 快捷键" 列表里可见、用户想绑就能绑。
         s.Hotkeys.GlobalHotkeys["SpeakFromHere"] = string.Empty;
+        s.Hotkeys.GlobalHotkeys["SpeakFromHereMinutes"] = string.Empty;
+        s.Hotkeys.GlobalHotkeys["SpeakFromHereChapters"] = string.Empty;
         s.Hotkeys.GlobalHotkeys["StopSpeaking"] = string.Empty;
 
         // 自动阅读模式下的覆盖

@@ -50,6 +50,14 @@
 - **书签**：按 `F10` 或 ≡ 菜单「添加书签」添加 / `F12` 打开书签列表 / 列表点击跳转
 - **进度记忆**：阅读位置自动保存，下次打开自动恢复
 
+### 🔊 朗读（TTS）
+- **从当前开始朗读**：从当前章一直播到全书末，一章播完自动续下一章，最后一章播完停在全书末
+- **朗读 N 分钟**：到设定分钟数自动停，**停在段末**；状态栏实时显示「剩余 12:34」。默认 30 分钟，可在「设置 → 朗读」改
+- **朗读 N 章**：播完 N 章自动停，**停在章末**。默认 10 章，可在「设置 → 朗读」改
+- **阅读位置跟随音频**：朗读时会自动翻页并跟着跨章跳转（可在设置里关）
+- **声音 / 语速 / 音量**：用 edge 在线合成，声音列表可在设置里刷新；提供「试听」
+- **与自动阅读互斥**：开始朗读会先停掉自动阅读，结束后按原状态恢复
+
 ### ⌨️ 全局快捷键
 - **单键即生效**（N / ↓ / F1 都行），不强制要求组合键
 - **可自定义**：在「设置 → 快捷键」里点输入框就能录新键
@@ -201,7 +209,7 @@
 | 事件总线 | `IEventAggregator<T>`（自研） | 强类型事件，编译期检查 |
 | 编码检测 | Ude.NetStandard 1.2.0 | BOM + 启发式检测（GBK/UTF-8/UTF-16/Big5…），坏字节容错替换 |
 | 日志 | Serilog 4.0.0 | 按日滚动，保留 30 天，`%LocalAppData%\FloatingNovelReader\Logs\` |
-| 单元测试 | xUnit 2.9.2 | 220 个测试用例 |
+| 单元测试 | xUnit 2.9.2 | 300 个测试用例 |
 
 ---
 
@@ -283,7 +291,7 @@
 │       ├── Icons/app.ico                 # 应用图标
 │       └── Styles.xaml                   # 全局样式
 │
-└── FloatingNovelReader.Tests/            # 单元测试（xUnit，86 用例）
+└── FloatingNovelReader.Tests/            # 单元测试（xUnit，300 用例）
     ├── Core/KeyGestureLiteTests.cs
     ├── Helpers/ChineseNumberTests.cs
     ├── Helpers/TextEncoderDetectorTests.cs
@@ -347,6 +355,13 @@ publish/
 | 日志 | `%LocalAppData%\FloatingNovelReader\Logs\app-YYYY-MM-DD.log` |
 | 安装目录 | `%LocalAppData%\Programs\FloatingNovelReader\` |
 
+> ⚠️ **手改 `settings.json` 时注意枚举要写数字**。`JsonHelper.Options` 没有挂
+> `JsonStringEnumConverter`，所以 `StartupBehavior` / `HotkeyMode` 必须是 `0` / `1` 这类**数值**。
+> 写成 `"LastReadingPosition"` 会让**整份设置**解析失败：日志里出现
+> 「读取设置失败，已回退默认设置」，原文件被备份成 `settings.json.corrupt-*.json`，
+> 所有个性化设置（含快捷键绑定）静默回到默认值。快捷键是**按名字**存的（`"SpeakFromHere": "F14"`），
+> 只有这两个枚举例外。
+
 ---
 
 ## 🧪 单元测试
@@ -368,8 +383,27 @@ dotnet test
 | `ChineseNumber` | 中文数字→阿拉伯数字（12 条） |
 | `ChapterContentRoundTrip` | 章节字节偏移往返（UTF-8/UTF-16/GBK/CRLF，7 条） |
 | `FontHelper` | 系统字体枚举：常用中文名置顶 + 未安装标注（5 条） |
+| `TtsSegmenter` | 朗读文本清洗 / XML 转义 / 按 600 字节切片（12 条） |
+| `TtsProtocol` | edge-tts 的 GEC 哈希、URL、SSML 与二进制帧解析（22 条） |
+| `TtsStopCondition` | 三种停止条件（书末 / N 分钟 / N 章）与剩余时间格式化（27 条） |
+| `TtsPlaylist` | 跨章播放列表状态机：段末 / 章末 / 书末停点、分钟秒表、中途翻页（22 条） |
+| `TtsSegmentDuration` | mp3 音频时长测量（N 分钟预算的基准，7 条） |
+| `SegmentPageMapper` | 「段在章里的比例」→ 页码的边界（8 条） |
+| `TtsPanelViewModel` | 朗读设置页：语速/音量钳制、默认 N 分钟 / N 章（14 条） |
+| `ChapterSequence` | 章节序列前后查找 / 阅读百分比（10 条） |
+| `ReaderPagerViewModel` | 分页子 VM 的翻页与重算（8 条） |
+| `ReaderDisplayViewModel` | 显示设置映射与属性变更（8 条） |
+| `HotkeyConfig` | 快捷键按名字存取 + 新增动作回填 + 中文名守卫（7 条） |
+| `JsonHelper` / `SettingsService` | 设置读写：缺字段、损坏文件、原子写、导入白名单（9 条） |
+| `ChapterContentReader` | 章节字节偏移读取的边界（5 条） |
+| `TextEncoderDetector` + `ChapterContentRoundTrip` | 编码检测与往返（11 条） |
+| `BookImportService` / `BookshelfService` | 导入、级联删除、封面颜色持久化（8 条） |
+| `ReadingSessionService` | 阅读进度防抖与刷盘（5 条） |
+| `Bootstrapper` / `WindowNavigator` | DI 注册完整性、`IPageAdvancer` 单例一致性（4 条） |
+| `BindingPathGuard` | XAML 每个绑定路径都能在对应 VM 上解析（含 `TtsSettingsTab`，6 条） |
+| `BuildScriptEncoding` | `build.ps1` 保留 UTF-8 BOM + 产物名与 README 一致（4 条） |
 
-共 **86 条**，全部通过。
+共 **300 条**，全部通过。
 
 </details>
 

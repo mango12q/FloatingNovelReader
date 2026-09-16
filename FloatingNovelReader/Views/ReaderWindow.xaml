@@ -68,6 +68,8 @@
                                         MenuAddBookmarkClick="OnMenuAddBookmarkClick"
                                         MenuBookmarkListClick="OnMenuBookmarkListClick"
                                         MenuSpeakFromHereClick="OnMenuSpeakFromHereClick"
+                                        MenuSpeakFromHereMinutesClick="OnMenuSpeakFromHereMinutesClick"
+                                        MenuSpeakFromHereChaptersClick="OnMenuSpeakFromHereChaptersClick"
                                         MenuStopSpeakingClick="OnMenuStopSpeakingClick"
                                         MenuSettingsClick="OnSettingsClick"/>
             </Grid>
@@ -83,6 +85,8 @@
                                         MenuAddBookmarkClick="OnMenuAddBookmarkClick"
                                         MenuBookmarkListClick="OnMenuBookmarkListClick"
                                         MenuSpeakFromHereClick="OnMenuSpeakFromHereClick"
+                                        MenuSpeakFromHereMinutesClick="OnMenuSpeakFromHereMinutesClick"
+                                        MenuSpeakFromHereChaptersClick="OnMenuSpeakFromHereChaptersClick"
                                         MenuStopSpeakingClick="OnMenuStopSpeakingClick"
                                         MenuSettingsClick="OnSettingsClick"/>
             </Grid>

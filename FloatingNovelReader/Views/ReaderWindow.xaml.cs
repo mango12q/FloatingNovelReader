@@ -212,10 +212,17 @@ public partial class ReaderWindow : Window
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
+        // 这条日志很重要：⚙ / ≡→设置 是否真的被点到了，只能靠它区分
+        // "按钮没收到点击" 与 "设置了但窗口没显示"（UIA 的 InvokePattern 打不进这个按钮）
+        Log.Information("打开设置窗口（来源：阅读窗口）");
         _navigator.ShowSettingsDialog(this);
     }
 
-    private void OnCloseClick(object sender, RoutedEventArgs e) => Hide();
+    private void OnCloseClick(object sender, RoutedEventArgs e)
+    {
+        Log.Information("关闭阅读窗口（× 被点击）");
+        Hide();
+    }
 
     private void OnMenuChapterListClick(object sender, RoutedEventArgs e)
         => _vm.ShowChapterListCommand.Execute(null);
@@ -229,6 +236,11 @@ public partial class ReaderWindow : Window
     private void OnMenuSpeakFromHereClick(object sender, RoutedEventArgs e)
         => _vm.SpeakFromHereCommand.Execute(null);
 
+    private void OnMenuSpeakFromHereMinutesClick(object sender, RoutedEventArgs e)
+        => _vm.SpeakFromHereMinutesCommand.Execute(null);
+
+    private void OnMenuSpeakFromHereChaptersClick(object sender, RoutedEventArgs e)
+        => _vm.SpeakFromHereChaptersCommand.Execute(null);
     private void OnMenuStopSpeakingClick(object sender, RoutedEventArgs e)
         => _vm.StopSpeakingCommand.Execute(null);
 }

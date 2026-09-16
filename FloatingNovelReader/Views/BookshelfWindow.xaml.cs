@@ -8,6 +8,7 @@ using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
 using FloatingNovelReader.ViewModels;
+using Serilog;
 
 namespace FloatingNovelReader.Views;
 
@@ -83,6 +84,7 @@ public partial class BookshelfWindow : Window
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
+        Log.Information("打开设置窗口（来源：书架窗口）");
         _navigator.ShowSettingsDialog(this);
     }
 

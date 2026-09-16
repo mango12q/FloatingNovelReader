@@ -32,6 +32,7 @@ public partial class SettingsWindow : Window
         DataContext = _vm;
         TtsTab.DataContext = _ttsPanel;
         Loaded += OnLoadedInternal;
+        Closing += OnClosingInternal;
     }
 
     private void OnLoadedInternal(object sender, RoutedEventArgs e)
@@ -72,6 +73,8 @@ public partial class SettingsWindow : Window
         "ShowBookmarkList" => "书签列表",
         "TogglePause" => "暂停",
         "SpeakFromHere" => "从当前开始朗读",
+        "SpeakFromHereMinutes" => "朗读 N 分钟",
+        "SpeakFromHereChapters" => "朗读 N 章",
         "StopSpeaking" => "停止朗读",
         _ => action
     };
@@ -83,15 +86,48 @@ public partial class SettingsWindow : Window
         foreach (var item in list)
             _vm.Current.Hotkeys.GlobalHotkeys[item.Action] = item.Key;
         _vm.Save();
-        DialogResult = true;
-        Close();
+        _ttsPanel.StopPreviewCommand.Execute(null);
+        SetDialogResult(true);
     }
 
     private void OnCancel(object sender, RoutedEventArgs e)
     {
+        _ttsPanel.StopPreviewCommand.Execute(null);
         _vm.Cancel();
         _ttsPanel.Refresh();   // Reload 换掉了 Current，把朗读页拉回实际设置
-        DialogResult = false;
+        SetDialogResult(false);
+    }
+
+    private void OnClosingInternal(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // 试听用的是同一个 TtsService：不在关闭时收尾，关掉设置窗后声音还在响
+        _ttsPanel.StopPreviewCommand.Execute(null);
+
+        if (!IsSaved)
+        {
+            _vm.Cancel();
+            _ttsPanel.Refresh();
+        }
+    }
+
+    private bool IsSaved { get; set; }
+
+    /// <summary>
+    /// 只有用 ShowDialog 打开时才能设 DialogResult。
+    /// 冒烟宿主（fnr-seed --show-settings）用 Show() 承载本窗口，
+    /// 直接赋值会抛"DialogResult 只能在创建窗口并调用 ShowDialog 后设置"。
+    /// </summary>
+    private void SetDialogResult(bool value)
+    {
+        try
+        {
+            DialogResult = value;
+        }
+        catch (InvalidOperationException)
+        {
+            // 非 ShowDialog 宿主：忽略即可
+        }
+        IsSaved = value;
         Close();
     }
 

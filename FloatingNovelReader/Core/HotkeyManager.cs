@@ -32,6 +32,12 @@ public enum HotkeyAction
     TogglePause,
     SpeakFromHere,
     StopSpeaking,
+
+    /// <summary>「朗读 N 分钟」——与 <see cref="SpeakFromHere"/> 同一个底层命令，只是停止条件不同。</summary>
+    SpeakFromHereMinutes,
+
+    /// <summary>「朗读 N 章」。</summary>
+    SpeakFromHereChapters,
 }
 
 /// <summary>
