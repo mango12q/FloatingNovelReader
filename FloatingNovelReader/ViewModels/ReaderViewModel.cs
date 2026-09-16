@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FloatingNovelReader.Core;
@@ -27,7 +28,7 @@ namespace FloatingNovelReader.ViewModels;
 ///   - 阅读进度持久化（ReadingSessionService）
 ///   - 对外暴露 <see cref="IPageAdvancer"/>（自动阅读 / 以后的 TTS、OCR 只依赖它）
 /// </summary>
-public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer
+public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer, ITtsPlaybackHost
 {
     private readonly ReadingSessionService _session;
     private readonly AutoReadService _autoRead;
@@ -46,8 +47,21 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer
     [ObservableProperty] private bool _isClickThrough;
     [ObservableProperty] private string _bookTitle = "未加载";
     [ObservableProperty] private string _chapterTitle = string.Empty;
+    [ObservableProperty] private bool _isSpeaking;
 
     private string _currentChapterText = string.Empty;
+
+    /// <summary>朗读开始前的自动阅读状态（朗读结束后按它恢复）。</summary>
+    private bool _autoReadWasOnBeforeTts;
+
+    /// <summary>
+    /// 朗读状态栏的刷新定时器（1 秒）。
+    ///
+    /// 「剩余 12:34」按段落音频时长推进，只在段与段之间跳变，
+    /// 所以进度事件本身不足以让倒计时看起来在走——用这个定时器把服务里的
+    /// 最新值拉出来刷新文案。只在朗读期间运行。
+    /// </summary>
+    private readonly DispatcherTimer _speakRefreshTimer;
 
     /// <summary>外观子 VM（XAML 绑定 Display.*）。</summary>
     public ReaderDisplayViewModel Display { get; }
@@ -91,11 +105,18 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer
         // PropertyChanged 处理器（会访问 FrameworkElement），必须切回 UI 线程，
         // 否则抛"调用线程无法访问此对象，因为另一个线程拥有该对象"。
         _tts.Progress += (s, e) => RunOnUi(() => OnTtsProgress(e));
-        _tts.Failed += (s, message) => RunOnUi(() => StatusText = $"朗读失败: {message}");
-        _tts.Stopped += (s, e) => RunOnUi(() =>
-        {
-            if (StatusText.StartsWith("正在朗读", StringComparison.Ordinal)) StatusText = "朗读已停止";
-        });
+        _tts.SegmentFinished += (s, e) => RunOnUi(OnTtsSegmentFinished);
+        _tts.ChapterStarted += (s, e) => RunOnUi(() => OnTtsChapterTextChanged());
+        _tts.BookFinished += (s, e) => RunOnUi(() => OnTtsBookFinished());
+        _tts.Failed += (s, message) => RunOnUi(() => OnTtsFailed(message));
+        _tts.Started += (s, e) => RunOnUi(OnTtsStarted);
+        _tts.Stopped += (s, e) => RunOnUi(OnTtsStopped);
+
+        // 1 秒刷新一次「剩余 mm:ss」：剩余时间按段落音频长度推进，
+        // 只在段间跳变，光靠进度事件看不到倒计时在走。
+        _speakRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _speakRefreshTimer.Tick += (s, e) => OnSpeakRefreshTick();
+        _speakRefreshTimer.Start();
 
         // 监听自动阅读
         _autoRead.Tick += (s, e) => Application.Current?.Dispatcher.Invoke(NextPage);
@@ -182,6 +203,8 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer
                 case HotkeyAction.ShowBookmarkList: ShowBookmarkListCommand.Execute(null); break;
                 case HotkeyAction.AddBookmark: AddBookmark(); break;
                 case HotkeyAction.SpeakFromHere: SpeakFromHereCommand.Execute(null); break;
+                case HotkeyAction.SpeakFromHereMinutes: SpeakFromHereMinutesCommand.Execute(null); break;
+                case HotkeyAction.SpeakFromHereChapters: SpeakFromHereChaptersCommand.Execute(null); break;
                 case HotkeyAction.StopSpeaking: StopSpeakingCommand.Execute(null); break;
             }
         });
@@ -330,16 +353,47 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer
     }
 
     /// <summary>
-    /// 从当前章节开始朗读（第一刀：朗读本章，播完停在章末）。
+    /// 从当前章节开始朗读，播到全书末（无停止条件）。
     /// 与自动阅读**软互斥**：两者都会驱动翻页，同时跑会一秒翻两页，所以启动朗读前先停自动阅读。
     /// </summary>
     [RelayCommand]
-    public void SpeakFromHere()
+    public void SpeakFromHere() => SpeakFromHere(TtsStopMode.BookEnd);
+
+    /// <summary>朗读 N 分钟（N = 设置里的 <see cref="TtsSettings.MaxMinutesDefault"/>，默认 30）。</summary>
+    [RelayCommand]
+    public void SpeakFromHereMinutes() => SpeakFromHere(TtsStopMode.Minutes);
+
+    /// <summary>朗读 N 章（N = 设置里的 <see cref="TtsSettings.MaxChaptersDefault"/>，默认 10）。</summary>
+    [RelayCommand]
+    public void SpeakFromHereChapters() => SpeakFromHere(TtsStopMode.Chapters);
+
+    /// <summary>
+    /// 三个菜单入口对应的**同一个底层命令**，只有停止条件不同。
+    /// </summary>
+    public void SpeakFromHere(TtsStopMode mode)
     {
-        if (!HasBook || CurrentChapter == null) return;
+        if (!HasBook || CurrentChapter == null)
+        {
+            Log.Information("朗读：请求被忽略（mode={Mode}，HasBook={HasBook}）", mode, HasBook);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_currentChapterText))
+        {
+            StatusText = "本章没有可朗读的文本";
+            return;
+        }
+
+        // 软互斥：两者都会驱动翻页（一秒翻两页 + 状态栏互相覆盖）
+        _autoReadWasOnBeforeTts = IsAutoRead;
         if (IsAutoRead) _autoRead.Stop();
-        if (string.IsNullOrEmpty(_currentChapterText)) return;
-        _tts.Speak(_currentChapterText);
+
+        // 每次朗读都用最新设置，改完语速/声音不用重启程序
+        RefreshSpeakSettings();
+
+        var options = TtsPlaybackOptions.FromMode(mode, MaxMinutes, MaxChapters);
+        Log.Information("朗读请求：mode={Mode} limit={Limit}", options.Mode, options.Limit);
+
+        _tts.Speak(this, () => _currentChapterText, options);
     }
 
     /// <summary>停止朗读（不清状态栏里的阅读信息，只把朗读提示换掉）。</summary>
@@ -350,21 +404,141 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer
         StatusText = "朗读已停止";
     }
 
-    /// <summary>朗读进度 → 状态栏；并按设置让阅读位置跟随音频。</summary>
+    /// <summary>设置页「朗读 N 分钟」的默认值。</summary>
+    public int MaxMinutes => _settings.Current.Tts.MaxMinutesDefault;
+
+    /// <summary>设置页「朗读 N 章」的默认值。</summary>
+    public int MaxChapters => _settings.Current.Tts.MaxChaptersDefault;
+
+    /// <summary>
+    /// 朗读前从设置里取一遍界面/文本相关项。
+    /// ReaderDisplay 已有 SettingsChanged 联动，但 Pager 的可用区域依赖于窗口尺寸，
+    /// 这里只做一次"确保分页是最新的"，避免朗读开始时页码算错。
+    /// </summary>
+    private void RefreshSpeakSettings()
+    {
+        if (Pager.TotalPages == 0) RecomputePagination();
+    }
+
+    // ── 朗读 → 状态栏 / 阅读位置 ──
+
+    private void OnTtsStarted()
+    {
+        IsSpeaking = true;
+        StatusText = _tts.StatusText ?? "正在朗读…";
+    }
+
     private void OnTtsProgress(TtsProgressEventArgs e)
     {
         // 试听（设置页里点"试听"）不该改动阅读位置和状态栏
         if (!e.DrivesReader) return;
 
-        if (_settings.Current.Tts.AutoAdvancePage && Pager.TotalPages > 1 && e.SegmentCount > 0)
-        {
-            // 片段在章节里的比例位置 → 对应页码（大致同步，不追求逐字对齐）
-            var target = (int)Math.Floor((e.SegmentIndex + 1.0) / e.SegmentCount * Pager.TotalPages) - 1;
-            Pager.SetPage(target, _currentChapterText);
-        }
+        // 先跟随后端给出的真实页码
+        if (_settings.Current.Tts.AutoAdvancePage && e.SegmentCount > 0)
+            FollowSegment(e.SegmentIndex, e.SegmentCount);
 
         // 放在分页之后：让朗读状态覆盖 PageChanged 写入的阅读状态
-        StatusText = $"正在朗读：第 {e.SegmentIndex + 1}/{e.SegmentCount} 段";
+        StatusText = string.IsNullOrEmpty(e.StatusText)
+            ? $"正在朗读：第 {e.SegmentIndex + 1}/{e.SegmentCount} 段"
+            : e.StatusText;
+    }
+
+    /// <summary>
+    /// 一段播完 → 翻下一页。章末则由 <see cref="OnTtsChapterStarted"/> 在换章后把位置放到新章第 1 页。
+    /// </summary>
+    private void OnTtsSegmentFinished()
+    {
+        if (!_settings.Current.Tts.AutoAdvancePage) return;
+        if (!HasBook) return;
+
+        NextPageCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// 朗读已经切到下一章（此时 <see cref="CurrentChapterText"/> 已是新章内容）。
+    /// 把游标重置到新章开头，并按新章重新分页 —— 读取顺序很关键：
+    /// 先 RecomputePagination 再 SetPage，最后才 FollowSegment。
+    /// </summary>
+    private void OnTtsChapterTextChanged()
+    {
+        if (!HasBook) return;
+
+        RecomputePagination();
+        Pager.SetPage(0, _currentChapterText);
+
+        if (_settings.Current.Tts.AutoAdvancePage)
+            FollowSegment(0, TtsSegmenter.SplitChapter(_currentChapterText).Count);
+    }
+
+    /// <summary>最后一章播完：停在全书末，不再翻页。</summary>
+    private void OnTtsBookFinished()
+    {
+        if (!HasBook) return;
+
+        // 落到最后一页（"停在全书末"）
+        if (Pager.TotalPages > 0) Pager.SetPage(Pager.TotalPages - 1, _currentChapterText);
+    }
+
+    private void OnTtsFailed(string message) => StatusText = $"朗读失败: {message}";
+
+    private void OnTtsStopped()
+    {
+        IsSpeaking = false;
+
+        // 用户主动停止时自己写了"朗读已停止"，别再覆盖一次
+        StatusText = _tts.StopReason switch
+        {
+            TtsStopReason.BookEnd => "朗读完成（已到全书末尾）",
+            TtsStopReason.MinutesReached => "朗读完成（已到设定的分钟数）",
+            TtsStopReason.ChaptersReached => "朗读完成（已到设定的章节数）",
+            TtsStopReason.Failed => "朗读已中断",
+            _ => StatusText.StartsWith("朗读", StringComparison.Ordinal) ? "朗读已停止" : StatusText,
+        };
+
+        // 恢复朗读前的自动阅读状态（用户不用自己记得之前开没开）
+        if (_autoReadWasOnBeforeTts && !IsAutoRead) _autoRead.Start();
+        _autoReadWasOnBeforeTts = false;
+    }
+
+    /// <summary>定时把服务里的「剩余 mm:ss」拉出来刷新（剩余时间只在段间跳变）。</summary>
+    private void OnSpeakRefreshTick()
+    {
+        if (!_tts.IsRunning) return;
+
+        var status = _tts.StatusText;
+        if (!string.IsNullOrEmpty(status)) StatusText = status;
+    }
+
+    /// <summary>
+    /// 让阅读位置跟随音频：把"段在章里的比例"映射到页码。
+    /// 抽成纯函数是为了能单测（ReaderViewModel 本身需要 WPF + 一整套服务才能构造）。
+    /// </summary>
+    public static int PageForSegment(int segmentIndex, int segmentCount, int totalPages) =>
+        SegmentPageMapper.PageForSegment(segmentIndex, segmentCount, totalPages);
+
+    private void FollowSegment(int segmentIndex, int segmentCount)
+    {
+        var total = Pager.TotalPages;
+        if (total <= 0) return;
+
+        var target = SegmentPageMapper.PageForSegment(segmentIndex, segmentCount, total);
+        if (target != Pager.CurrentPage) Pager.SetPage(target, _currentChapterText);
+    }
+
+    // ── ITtsPlaybackHost：跨章朗读所需的章节导航能力 ──
+
+    string ITtsPlaybackHost.GetCurrentChapterText() => _currentChapterText;
+
+    bool ITtsPlaybackHost.CanAdvanceChapter() =>
+        ChapterSequence.Next(ChapterSequence.Flatten(CurrentBook), CurrentChapter?.Id) != null;
+
+    bool ITtsPlaybackHost.AdvanceToNextChapter()
+    {
+        var next = ChapterSequence.Next(ChapterSequence.Flatten(CurrentBook), CurrentChapter?.Id);
+        if (next == null) return false;
+
+        SetChapterAndPage(next, 0);
+        return true;
     }
 
     /// <summary>把回调切回 UI 线程；没有 Application（单测）时直接执行。</summary>

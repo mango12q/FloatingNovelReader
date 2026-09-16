@@ -62,6 +62,28 @@
                       IsChecked="{Binding AutoAdvancePage, Mode=TwoWay}"
                       AutomationProperties.Name="朗读时自动翻页"/>
 
+            <!-- 两种停止条件的默认值（菜单入口直接取这里的值） -->
+            <TextBlock Text="停止条件默认值" FontWeight="Bold" Margin="0,16,0,4"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="70"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="朗读 N 分钟：" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="1" Margin="6,0,0,0"
+                         Text="{Binding MaxMinutesDefault, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                         PreviewTextInput="OnNumberOnly" DataObject.Pasting="OnPasteNumberOnly"
+                         AutomationProperties.Name="朗读分钟数默认值"/>
+                <TextBlock Grid.Column="2" Text="朗读 N 章：" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                <TextBox Grid.Column="3" Margin="6,0,0,0"
+                         Text="{Binding MaxChaptersDefault, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                         PreviewTextInput="OnNumberOnly" DataObject.Pasting="OnPasteNumberOnly"
+                         AutomationProperties.Name="朗读章节数默认值"/>
+            </Grid>
+            <TextBlock Text="分钟数到点停在段末；章节数到点停在章末" FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+
             <!-- 试听 -->
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                 <Button Content="试听" Padding="14,3" Command="{Binding PreviewCommand}"
@@ -77,13 +99,15 @@
                 <StackPanel>
                     <TextBlock Text="怎么用" FontWeight="Bold" Margin="0,0,0,4"/>
                     <TextBlock TextWrapping="Wrap" FontSize="12" LineHeight="18">
-                        <Run Text="· 阅读窗口的 ≡ 菜单里有两项：『从当前开始朗读』『停止朗读』。"/>
+                        <Run Text="· 阅读窗口的 ≡ 菜单里有四项：『从当前开始朗读』（播到全书末）、『朗读 N 分钟』、『朗读 N 章』、『停止朗读』。"/>
                         <LineBreak/>
-                        <Run Text="· 想用快捷键：切到『快捷键』标签页，给这两项录一个按键即可（默认未绑定）。"/>
+                        <Run Text="· 『朗读 N 分钟』到点停在段末，状态栏实时显示剩余时间；『朗读 N 章』播完 N 章停在章末。N 取上面两个输入框的值。"/>
                         <LineBreak/>
-                        <Run Text="· 朗读按段落切片合成后顺序播放，播完一段自动合成下一段。"/>
+                        <Run Text="· 想用快捷键：切到『快捷键』标签页，给『从当前开始朗读』『停止朗读』录一个按键即可（默认未绑定）。"/>
                         <LineBreak/>
-                        <Run Text="· 与『自动阅读』互斥：开始朗读会自动停掉自动阅读，避免同时翻页。"/>
+                        <Run Text="· 朗读按段落切片合成后顺序播放，播完一段自动合成下一段；一章播完自动续下一章。"/>
+                        <LineBreak/>
+                        <Run Text="· 与『自动阅读』互斥：开始朗读会自动停掉自动阅读，结束后恢复它原来的状态。"/>
                     </TextBlock>
                 </StackPanel>
             </Border>

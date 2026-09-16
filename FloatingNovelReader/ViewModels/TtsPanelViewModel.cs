@@ -85,10 +85,35 @@ public sealed partial class TtsPanelViewModel : ObservableObject
         }
     }
 
+    /// <summary>「朗读 N 分钟」入口的默认分钟数（菜单直接用它，不再弹输入框）。</summary>
+    public int MaxMinutesDefault
+    {
+        get => Tts.MaxMinutesDefault;
+        set
+        {
+            var v = Math.Clamp(value, 1, 24 * 60);
+            if (Tts.MaxMinutesDefault == v) return;
+            Tts.MaxMinutesDefault = v;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>「朗读 N 章」入口的默认章节数。</summary>
+    public int MaxChaptersDefault
+    {
+        get => Tts.MaxChaptersDefault;
+        set
+        {
+            var v = Math.Clamp(value, 1, 10_000);
+            if (Tts.MaxChaptersDefault == v) return;
+            Tts.MaxChaptersDefault = v;
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>加载声音列表：缓存 → 联网 → 内置兜底。</summary>
     [RelayCommand]
-    private async Task LoadVoicesAsync()
-    {
+    private async Task LoadVoicesAsync()    {
         if (IsLoadingVoices) return;
         IsLoadingVoices = true;
         Status = "正在获取声音列表…";
@@ -115,7 +140,8 @@ public sealed partial class TtsPanelViewModel : ObservableObject
     [RelayCommand]
     public void Preview()
     {
-        _tts.Speak(PreviewText, drivesReader: false);
+        // 试听单段文本：不跨章、不动阅读位置、不写状态栏
+        _tts.SpeakText(PreviewText);
         Status = "试听中…（可点『停止试听』）";
     }
 
@@ -133,5 +159,7 @@ public sealed partial class TtsPanelViewModel : ObservableObject
         OnPropertyChanged(nameof(RatePercent));
         OnPropertyChanged(nameof(VolumePercent));
         OnPropertyChanged(nameof(AutoAdvancePage));
+        OnPropertyChanged(nameof(MaxMinutesDefault));
+        OnPropertyChanged(nameof(MaxChaptersDefault));
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using FloatingNovelReader.Core;
 using FloatingNovelReader.Models;
 using Xunit;
@@ -68,11 +69,37 @@ public class HotkeyConfigTests
     [Fact]
     public void DefaultSettings_IncludeTheTtsActions()
     {
-        // 新用户的默认配置里要有朗读这两项，否则同样不可见
+        // 新用户的默认配置里要有朗读这几项，否则同样不可见。
+        // 三个入口（从当前开始 / N 分钟 / N 章）都要在列，才能各自单独绑键。
         var defaults = FloatingNovelReader.Helpers.JsonHelper.CreateDefaultSettings();
 
         Assert.True(defaults.Hotkeys.GlobalHotkeys.ContainsKey("SpeakFromHere"));
+        Assert.True(defaults.Hotkeys.GlobalHotkeys.ContainsKey("SpeakFromHereMinutes"));
+        Assert.True(defaults.Hotkeys.GlobalHotkeys.ContainsKey("SpeakFromHereChapters"));
         Assert.True(defaults.Hotkeys.GlobalHotkeys.ContainsKey("StopSpeaking"));
+
+        // 默认必须是**未绑定**：给它们默认全局键会在所有程序里抢按键
+        Assert.Equal(string.Empty, defaults.Hotkeys.GlobalHotkeys["SpeakFromHere"]);
+        Assert.Equal(string.Empty, defaults.Hotkeys.GlobalHotkeys["SpeakFromHereMinutes"]);
+        Assert.Equal(string.Empty, defaults.Hotkeys.GlobalHotkeys["SpeakFromHereChapters"]);
+        Assert.Equal(string.Empty, defaults.Hotkeys.GlobalHotkeys["StopSpeaking"]);
+    }
+
+    [Fact]
+    public void TtsHotkeyActions_AreDistinctAndParseable()
+    {
+        // 三个入口必须是三个独立动作：共用一个动作就没法分别绑键，
+        // 也没法在 ReaderViewModel 里路由到不同的停止条件。
+        Assert.NotEqual(HotkeyAction.SpeakFromHere, HotkeyAction.SpeakFromHereMinutes);
+        Assert.NotEqual(HotkeyAction.SpeakFromHere, HotkeyAction.SpeakFromHereChapters);
+        Assert.NotEqual(HotkeyAction.SpeakFromHereMinutes, HotkeyAction.SpeakFromHereChapters);
+
+        foreach (var name in new[] { "SpeakFromHere", "SpeakFromHereMinutes", "SpeakFromHereChapters", "StopSpeaking" })
+        {
+            Assert.True(Enum.TryParse<HotkeyAction>(name, out var parsed), $"{name} 解析失败");
+            // 按名字存取：ToString 必须能原样还原
+            Assert.Equal(name, parsed.ToString());
+        }
     }
 
     [Fact]
@@ -87,5 +114,27 @@ public class HotkeyConfigTests
         {
             Assert.True(Enum.TryParse<HotkeyAction>(key, out _), $"键名 {key} 无法解析回 HotkeyAction");
         }
+    }
+
+    [Fact]
+    public void SettingsWindow_HasAChineseDisplayNameForEveryAction()
+    {
+        // SettingsWindow.DisplayNameOf 是硬编码 switch：漏掉新动作时，设置页会显示
+        // 英文枚举名（"SpeakFromHereMinutes"），用户根本不知道该绑哪个。
+        var method = typeof(FloatingNovelReader.Views.SettingsWindow).GetMethod(
+            "DisplayNameOf", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var missing = new List<string>();
+        foreach (var action in Enum.GetValues<HotkeyAction>())
+        {
+            var name = action.ToString();
+            var display = (string)method!.Invoke(null, new object[] { name })!;
+            if (display == name) missing.Add(name);
+        }
+
+        Assert.True(missing.Count == 0,
+            "设置页缺少这些快捷键的中文名（会直接把英文枚举名显示给用户）：" +
+            string.Join(", ", missing));
     }
 }
