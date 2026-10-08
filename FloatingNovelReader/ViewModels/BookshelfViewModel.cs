@@ -53,9 +53,9 @@ public sealed partial class BookshelfViewModel : ObservableObject
     {
         var dlg = new OpenFileDialog
         {
-            Filter = "TXT 文件 (*.txt)|*.txt|所有文件 (*.*)|*.*",
+            Filter = BookFormatDetector.OpenFileFilter,
             Multiselect = true,
-            Title = "选择要导入的 TXT 文件",
+            Title = "选择要导入的电子书（TXT / EPUB / PDF）",
         };
         if (dlg.ShowDialog() != true) return;
 
@@ -83,7 +83,7 @@ public sealed partial class BookshelfViewModel : ObservableObject
     {
         if (book == null) return;
         // 三选一: YesNoCancel, 默认 No
-        //   Yes  = 删除记录 + 删除源 .txt 文件 (彻底)
+        //   Yes  = 删除记录 + 删除源文件 (彻底)
         //   No   = 仅删除数据库记录, 保留源文件
         //   Cancel = 取消
         var msg = $"确定从书架移除《{book.Title}》?\n\n" +

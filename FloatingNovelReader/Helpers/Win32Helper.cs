@@ -48,6 +48,66 @@ public static class Win32Helper
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool IsWindow(IntPtr hWnd);
 
+    // ── 显示器 / DPI（对话框高分屏适配用）─────────────
+
+    public const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    // Win10 1607+；老系统上不存在会抛 EntryPointNotFoundException，调用方已兜底
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForSystem();
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    /// <summary>窗口所在显示器的工作区（设备像素）；拿不到返回 null。</summary>
+    public static RECT? GetMonitorWorkArea(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return null;
+        try
+        {
+            var monitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+            if (monitor == IntPtr.Zero) return null;
+
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(monitor, ref info)) return null;
+            return info.rcWork;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>窗口所在显示器的缩放比例（1.0 = 96 DPI）；拿不到返回 0 由调用方兜底。</summary>
+    public static double GetDpiScaleForWindow(IntPtr hWnd)
+    {
+        try
+        {
+            uint dpi = hWnd != IntPtr.Zero ? GetDpiForWindow(hWnd) : GetDpiForSystem();
+            return dpi > 0 ? dpi / 96.0 : 0;
+        }
+        catch
+        {
+            return 0; // Win10 1607 之前的系统没有这两个 API
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
     {

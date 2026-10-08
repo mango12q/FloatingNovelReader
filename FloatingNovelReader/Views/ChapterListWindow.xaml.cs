@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using FloatingNovelReader;
+using FloatingNovelReader.Helpers;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,13 @@ namespace FloatingNovelReader.Views;
 
 public partial class ChapterListWindow : Window
 {
+    // 首选/最小尺寸（DIP）。700 DIP 高在 150% 缩放的 1080p 屏上（工作区约 1280×680 DIP）
+    // 放不下，DpiHelper 会按工作区收窄，保证整窗可见、可拖动。
+    private const double PreferredWidth = 500;
+    private const double PreferredHeight = 700;
+    private const double MinWidthDip = 400;
+    private const double MinHeightDip = 500;
+
     private readonly ChapterListViewModel _vm;
 
     public ChapterListWindow(ChapterListViewModel vm)
@@ -26,7 +34,14 @@ public partial class ChapterListWindow : Window
                 VolumeList.ItemsSource = _vm.Volumes;
             }
         };
+
+        SourceInitialized += (s, e) => ApplyDpiLayout(recenter: true);
+        DpiChanged += (s, e) => ApplyDpiLayout(recenter: false);
     }
+
+    private void ApplyDpiLayout(bool recenter) =>
+        DpiHelper.ApplyDialogLayout(
+            this, Owner, PreferredWidth, PreferredHeight, MinWidthDip, MinHeightDip, recenter);
 
     private void OnChapterClick(object sender, MouseButtonEventArgs e)
     {

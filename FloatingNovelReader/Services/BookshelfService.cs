@@ -13,11 +13,13 @@ namespace FloatingNovelReader.Services;
 public sealed class BookshelfService
 {
     private readonly DatabaseService _db;
+    private readonly Core.ImportOptions _importOptions;
     private List<Book> _cache = new();
 
-    public BookshelfService(DatabaseService db)
+    public BookshelfService(DatabaseService db, Core.ImportOptions importOptions)
     {
         _db = db;
+        _importOptions = importOptions;
     }
 
     public IReadOnlyList<Book> Books => _cache;
@@ -65,11 +67,11 @@ public sealed class BookshelfService
     ///   1) 关闭可能正在打开该书的 ReaderWindow
     ///   2) 数据库侧: 删除 Books 记录; Volumes/Chapters/ReadingProgress/Bookmarks 通过
     ///      ON DELETE CASCADE (依赖 PRAGMA foreign_keys=ON) 自动级联清理
-    ///   3) 若 deleteSourceFile=true 且源 .txt 存在, 一并删除源文件
+    ///   3) 若 deleteSourceFile=true 且源文件存在, 一并删除源文件（EPUB/PDF 的正文缓存总是清掉）
     /// 调用方负责弹确认框; 此方法只做实际删除。
     /// </summary>
     /// <param name="bookId">要删除的书 ID</param>
-    /// <param name="deleteSourceFile">是否同时删除源 .txt 文件</param>
+    /// <param name="deleteSourceFile">是否同时删除源文件</param>
     /// <returns>实际删除的源文件路径 (用于日志); null 表示没删</returns>
     public string? Remove(int bookId, bool deleteSourceFile)
     {
@@ -110,6 +112,12 @@ public sealed class BookshelfService
 
         // 删库: Book 记录 + CASCADE 清空 Volumes/Chapters/ReadingProgress/Bookmarks
         _db.DeleteBook(bookId);
+
+        // EPUB/PDF 的正文缓存是导入时生成的派生数据，随书一起清掉（失败不影响移除结果）。
+        // TryDeleteCache 只允许删缓存目录内的文件。
+        if (Helpers.ExtractedTextCache.TryDeleteCache(book.ContentPath, _importOptions.CacheDirectory))
+            Log.Information("已删除正文缓存 {Path}", book.ContentPath);
+
         _cache.RemoveAll(b => b.Id == bookId);
         Log.Information("从书架移除 {Id} {Title}, deleteSourceFile={Del}",
             bookId, book.Title, deleteSourceFile);

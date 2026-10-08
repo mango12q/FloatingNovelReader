@@ -22,6 +22,13 @@ public static class Constants
     /// <summary>朗读音频缓存目录（DiskOptional 模式下后台合成的 mp3 落在这里）。</summary>
     public static string TtsCacheDir => System.IO.Path.Combine(AppDataDir, "TtsCache");
 
+    /// <summary>
+    /// EPUB / PDF 导入时解析出的纯文本缓存目录。
+    /// 电子书是压缩包 / 二进制分页格式，无法沿用「按字节偏移回读章节」的链路，
+    /// 因此导入时先转成一份 UTF-8 纯文本落在这里，阅读时仍按偏移读取（见 ChapterContentReader）。
+    /// </summary>
+    public static string ImportCacheDir => System.IO.Path.Combine(AppDataDir, "ImportCache");
+
     // 窗口尺寸默认值
     public const double DefaultWidth = 500;
     public const double DefaultHeight = 700;
@@ -60,4 +67,8 @@ public static class Constants
     // 导入上限。Import() 会把整份文件读进内存、解析器再复制一份，
     // 不设上限时一个超大 TXT 就能把进程撑爆（而且报错完全没线索）。
     public const long MaxImportFileBytes = 200L * 1024 * 1024; // 200 MB
+
+    // EPUB/PDF 解析出的正文文本上限。源文件不大但解析结果可能被畸形包体放大
+    // （例如 EPUB 里塞满重复章节、PDF 每页都是乱码文本），落盘前先卡住。
+    public const long MaxExtractedTextBytes = 200L * 1024 * 1024; // 200 MB
 }

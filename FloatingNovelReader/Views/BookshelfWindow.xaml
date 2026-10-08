@@ -35,7 +35,7 @@
                          AutomationProperties.HelpText="输入书名关键词进行搜索"/>
                 <Button Content="导入" Padding="12,4" Margin="6,0" Click="OnImportClick"
                         AutomationProperties.Name="导入按钮"
-                        AutomationProperties.HelpText="导入 TXT 格式电子书"/>
+                        AutomationProperties.HelpText="导入 TXT / EPUB / PDF 格式电子书"/>
                 <Button Content="设置" Padding="12,4" Margin="6,0" Click="OnSettingsClick"
                         AutomationProperties.Name="设置按钮"
                         AutomationProperties.HelpText="打开应用设置"/>

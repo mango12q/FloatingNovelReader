@@ -382,9 +382,17 @@ public sealed class ChapterParser
     }
 
     /// <summary>
+    /// 判断一行是否像卷/章标题。
+    /// PDF 没有可靠的章节结构（PdfPig 的 outline 不带页码），抽取文字后复用同一套规则切章，
+    /// 保证 PDF 的章节识别口径与 TXT 完全一致。
+    /// </summary>
+    public static bool LooksLikeHeader(string line) =>
+        TryMatchHeader(line, out _, out _, out _, out _);
+
+    /// <summary>
     /// 尝试匹配一行是否为一个卷/章标题。返回 (kind, number, tail, isVolume)。
     /// </summary>
-    private bool TryMatchHeader(string line, out string kind, out string number, out string? tail, out bool isVolume)
+    private static bool TryMatchHeader(string line, out string kind, out string number, out string? tail, out bool isVolume)
     {
         kind = ""; number = ""; tail = null; isVolume = false;
         if (string.IsNullOrWhiteSpace(line)) return false;

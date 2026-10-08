@@ -35,7 +35,8 @@ public class ReadingSessionServiceTests : IDisposable
             "第一章 开端\n内容A\n第二章 发展\n内容B\n第三章 高潮\n内容C\n",
             Encoding.UTF8);
 
-        var importer = new BookImportService(_db, new ChapterParser());
+        var importer = new BookImportService(
+            _db, new ChapterParser(), new FloatingNovelReader.Core.ImportOptions());
         _book = importer.Import(_txtFile);
     }
 

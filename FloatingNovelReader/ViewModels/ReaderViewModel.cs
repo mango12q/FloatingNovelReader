@@ -570,8 +570,7 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer, I
         if (CurrentChapter == null || CurrentBook == null) return;
         try
         {
-            _currentChapterText = ChapterContentReader.Read(
-                CurrentBook.FilePath, CurrentChapter, CurrentBook.Encoding);
+            _currentChapterText = ChapterContentReader.Read(CurrentBook, CurrentChapter);
             ChapterTitle = CurrentChapter.Title;
         }
         catch (Exception ex)

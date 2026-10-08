@@ -60,8 +60,16 @@ CREATE TABLE IF NOT EXISTS Books (
     TotalVolumes INTEGER DEFAULT 0,
     ImportTime TEXT NOT NULL,
     LastReadTime TEXT,
-    CoverColor TEXT DEFAULT '#6C8CFF'
+    CoverColor TEXT DEFAULT '#6C8CFF',
+    -- EPUB / PDF 支持带来的两列（老库由 EnsureColumn 补）：
+    --   ContentPath  ：章节字节偏移实际指向的文件（电子书导入时生成的 UTF-8 正文缓存）
+    --   SourceFormat ：来源格式 txt / epub / pdf
+    ContentPath TEXT,
+    SourceFormat TEXT
 );");
+
+        EnsureColumn(conn, "Books", "ContentPath", "TEXT");
+        EnsureColumn(conn, "Books", "SourceFormat", "TEXT");
 
         ExecNonQuery(conn, @"
 CREATE TABLE IF NOT EXISTS Volumes (
@@ -127,8 +135,8 @@ CREATE TABLE IF NOT EXISTS Bookmarks (
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-INSERT INTO Books (Title, Author, FilePath, FileSize, Encoding, TotalChapters, TotalVolumes, ImportTime, LastReadTime, CoverColor)
-VALUES ($title, $author, $filePath, $fileSize, $encoding, $totalChapters, $totalVolumes, $importTime, $lastReadTime, $coverColor);
+INSERT INTO Books (Title, Author, FilePath, FileSize, Encoding, TotalChapters, TotalVolumes, ImportTime, LastReadTime, CoverColor, ContentPath, SourceFormat)
+VALUES ($title, $author, $filePath, $fileSize, $encoding, $totalChapters, $totalVolumes, $importTime, $lastReadTime, $coverColor, $contentPath, $sourceFormat);
 SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$title", book.Title);
         cmd.Parameters.AddWithValue("$author", (object?)book.Author ?? DBNull.Value);
@@ -140,6 +148,8 @@ SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$importTime", book.ImportTime.ToString("o"));
         cmd.Parameters.AddWithValue("$lastReadTime", DBNull.Value);
         cmd.Parameters.AddWithValue("$coverColor", book.CoverColor);
+        cmd.Parameters.AddWithValue("$contentPath", (object?)book.ContentPath ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$sourceFormat", book.SourceFormat);
         var id = (long)(cmd.ExecuteScalar() ?? 0L);
         return (int)id;
     }
@@ -244,7 +254,24 @@ SELECT last_insert_rowid();";
             ImportTime = DateTime.Parse(reader.GetString(8), null, System.Globalization.DateTimeStyles.RoundtripKind),
             LastReadTime = reader.IsDBNull(9) ? null : DateTime.Parse(reader.GetString(9), null, System.Globalization.DateTimeStyles.RoundtripKind),
             CoverColor = reader.GetString(10),
+            // 按列名读：老库是 ALTER TABLE 补出来的列，位置不保证与新建库一致
+            ContentPath = GetStringOrNull(reader, "ContentPath"),
+            SourceFormat = GetStringOrNull(reader, "SourceFormat") ?? "txt",
         };
+    }
+
+    /// <summary>按列名读可空字符串；列不存在（极老的库）时返回 null 而不是抛异常。</summary>
+    private static string? GetStringOrNull(SqliteDataReader reader, string column)
+    {
+        try
+        {
+            int i = reader.GetOrdinal(column);
+            return reader.IsDBNull(i) ? null : reader.GetString(i);
+        }
+        catch (IndexOutOfRangeException)
+        {
+            return null;
+        }
     }
 
     // -------- Volumes --------
@@ -585,5 +612,32 @@ SELECT last_insert_rowid();";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// 老库迁移：列不存在时补一列。SQLite 不支持 ADD COLUMN IF NOT EXISTS，
+    /// 先用 PRAGMA table_info 查一遍；ALTER TABLE ADD COLUMN 只加元数据，不重写数据，开销可忽略。
+    /// </summary>
+    private static void EnsureColumn(SqliteConnection conn, string table, string column, string type)
+    {
+        bool exists = false;
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"PRAGMA table_info({table});";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                {
+                    exists = true;
+                    break;
+                }
+            }
+        }
+
+        if (exists) return;
+
+        ExecNonQuery(conn, $"ALTER TABLE {table} ADD COLUMN {column} {type};");
+        Log.Information("数据库迁移：{Table} 新增列 {Column}", table, column);
     }
 }

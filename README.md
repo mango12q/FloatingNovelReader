@@ -17,7 +17,7 @@
 
 ---
 
-> 看小说的同时不耽误工作——半透明悬浮窗，鼠标可穿透；支持 TXT 自动分章、书签、目录、全局快捷键翻页。
+> 看小说的同时不耽误工作——半透明悬浮窗，鼠标可穿透；支持 TXT / EPUB / PDF 自动分章、书签、目录、全局快捷键翻页。
 
 ## 📑 目录
 
@@ -45,10 +45,19 @@
 
 ### 📚 内容 & 导航
 - **TXT 导入**：自动检测编码（GBK / UTF-8 / UTF-16 / Big5 …）
+- **EPUB 导入**：按 spine 顺序解析，章节标题取正文标题（h1~h6）或 EPUB 目录（nav / ncx）条目名；「整本书塞进一个 XHTML」也能按标题切开
+- **PDF 导入**：抽取文字层并按「第 N 章 / Chapter N / 卷一」等标题行分章；没有标题行时按页分块（第 1-5 页 …），排版换行自动接回段落
 - **自动分章**：识别「第 N 章 / 第一卷 / Chapter 1 / 1、」等多种写法
 - **章节目录**：按 `F9` 打开，按卷/章树形展示
 - **书签**：按 `F10` 或 ≡ 菜单「添加书签」添加 / `F12` 打开书签列表 / 列表点击跳转
 - **进度记忆**：阅读位置自动保存，下次打开自动恢复
+- **高分屏适配**：书签 / 目录窗口按所在显示器的 DPI 与工作区自适应尺寸与位置，跨不同缩放的显示器也不会跑到屏幕外
+
+> **电子书格式的边界**（导入前先看一眼，能省一次失败）：
+> - **扫描版 PDF 不支持**：只抽文字层，不做 OCR。整本都是图片的 PDF 会明确提示「没有可提取的文字」，请先用 OCR 工具转成带文字层的 PDF 或 TXT。
+> - **受 DRM 保护的 EPUB / 带打开密码的 PDF 不支持**：会提示文件打不开/已加密。
+> - **PDF 的分章依赖标题行**：识别不到「第 N 章 / Chapter N / 卷一」这类标题时按页分块（每 5 页一节），目录里显示「第 1-5 页」；多栏排版、公式表格的阅读顺序可能不完美。
+> - **EPUB 的章节标题**取自正文标题或书内目录，二者都没有时按顺序编号。
 
 ### 🔊 朗读（TTS）
 - **从当前开始朗读**：从当前章一直播到全书末，一章播完自动续下一章，最后一章播完停在全书末
@@ -90,8 +99,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `floating-novel-reader-singlefile-win-x64.exe` | **单文件版**：单个 EXE（约 4 MB），双击即用，首次运行询问是否安装 |
-| `floating-novel-reader-portable-win-x64.zip` | **便携版**：解压即用（EXE + DLL 目录，约 2 MB），内含 `portable.mode` 标记，不弹安装提示 |
+| `floating-novel-reader-singlefile-win-x64.exe` | **单文件版**：单个 EXE（约 10 MB，含 EPUB/PDF 解析库），双击即用，首次运行询问是否安装 |
+| `floating-novel-reader-portable-win-x64.zip` | **便携版**：解压即用（EXE + DLL 目录，压缩包约 4 MB），内含 `portable.mode` 标记，不弹安装提示 |
 
 ### 运行环境
 
@@ -134,10 +143,12 @@
 ## 🚀 快速开始
 
 1. 下载并运行 EXE（安装选项见 [安装步骤](#安装步骤)）
-2. 主窗口「书架」→ 点击「导入」按钮 → 选一个 TXT 文件
-3. 等待进度条走完（首次导入约几秒，1MB 以内瞬间完成）
+2. 主窗口「书架」→ 点击「导入」按钮 → 选一个电子书文件（TXT / EPUB / PDF，也支持直接拖进窗口）
+3. 等待进度条走完（TXT 1MB 以内瞬间完成；EPUB/PDF 会先解析成正文，几十 MB 的电子书通常 1~2 秒）
 4. 双击书籍卡片 → 阅读窗口弹出
 5. 按 `F3` 切换鼠标穿透 → 看小说不挡工作
+
+> EPUB / PDF 导入时会生成一份纯文本正文缓存（见 [配置文件位置](#️-配置文件位置)），阅读时读的是它，因此**源文件被移动/删除也不影响已导入的书**（重新导入才会重新解析）。
 
 鼠标操作：按住左键拖动 = 移动窗口，右键点击 = 上一页，滚轮 = 上/下翻页。
 
@@ -208,8 +219,10 @@
 | 数据库 | SQLite（Microsoft.Data.Sqlite 8.0.10） | 5 表，外键级联，`PRAGMA foreign_keys=ON`，busy timeout 2s |
 | 事件总线 | `IEventAggregator<T>`（自研） | 强类型事件，编译期检查 |
 | 编码检测 | Ude.NetStandard 1.2.0 | BOM + 启发式检测（GBK/UTF-8/UTF-16/Big5…），坏字节容错替换 |
+| EPUB 解析 | System.IO.Compression + XDocument（内置） | 不引第三方库：container.xml → OPF → spine，XHTML 用容错正则转纯文本 |
+| PDF 解析 | PdfPig 0.1.16（Apache-2.0） | 只抽文字层（不做 OCR），按标题行分章、排版换行重排 |
 | 日志 | Serilog 4.0.0 | 按日滚动，保留 30 天，`%LocalAppData%\FloatingNovelReader\Logs\` |
-| 单元测试 | xUnit 2.9.2 | 300 个测试用例 |
+| 单元测试 | xUnit 2.9.2 | 351 个测试用例 |
 
 ---
 
@@ -240,12 +253,14 @@
 │   │   ├── AppSettings.cs                # 全局应用设置
 │   │   ├── AppState.cs                   # 进程内运行时状态
 │   │   ├── Book.cs / Volume.cs / Chapter.cs
+│   │   ├── BookFormat.cs                 # 格式识别（TXT/EPUB/PDF + 魔数兜底）
+│   │   ├── ExtractedContent.cs           # 电子书解析出的「章节段」中间结构
 │   │   ├── Bookmark.cs / ReadingProgress.cs
 │   │       ├── DisplaySettings.cs            # 字体/字体色/背景/透明度
 │   │   └── HotkeyConfig.cs               # 快捷键绑定配置
 │   │
 │   ├── Services/                         # 业务服务
-│   │   ├── BookImportService.cs          # TXT 导入全流程
+│   │   ├── BookImportService.cs          # 导入全流程（TXT 编码解析 / EPUB / PDF 分流）
 │   │   ├── BookshelfService.cs           # 书架管理（增删查/排序）
 │   │   ├── BookmarkService.cs            # 书签 CRUD
 │   │   ├── ReadingSessionService.cs      # 阅读会话（当前书/章/页 + 进度保存）
@@ -276,9 +291,16 @@
 │   │   └── OverlayControlBar.xaml(.cs)   # 悬浮控制栏（菜单/设置/关闭）
 │   │
 │   ├── Helpers/                          # 辅助工具
-│   │   ├── ChapterParser.cs              # 卷章正则解析引擎
+│   │   ├── ChapterParser.cs              # 卷章正则解析引擎（TXT 与 PDF 共用）
+│   │   ├── EpubTextExtractor.cs          # EPUB → 章节段（container/OPF/spine + 目录标题）
+│   │   ├── PdfTextExtractor.cs           # PDF → 章节段（文字层抽取 + 标题分章 + 换行重排）
+│   │   ├── HtmlTextConverter.cs          # XHTML → 纯文本（含标题下标）
+│   │   ├── ExtractedTextCache.cs         # 正文缓存落盘 + 章节字节偏移
+│   │   ├── ChapterContentReader.cs       # 按偏移回读章节（TXT 源文件或正文缓存）
 │   │   ├── TextEncoderDetector.cs        # 编码自动检测（BOM + Ude 启发式）
-│   │   ├── Win32Helper.cs                # Win32 API P/Invoke（置顶/穿透）
+│   │   ├── Win32Helper.cs                # Win32 API P/Invoke（置顶/穿透/显示器工作区/DPI）
+│   │   ├── DpiHelper.cs                  # 对话框高分屏适配（尺寸/位置/DpiChanged）
+│   │   ├── DialogSizing.cs               # 对话框尺寸位置的纯函数计算（可单测）
 │   │   ├── FontHelper.cs                 # 系统字体枚举
 │   │   └── JsonHelper.cs                 # JSON 序列化（settings.json）
 │   │
@@ -291,10 +313,16 @@
 │       ├── Icons/app.ico                 # 应用图标
 │       └── Styles.xaml                   # 全局样式
 │
-└── FloatingNovelReader.Tests/            # 单元测试（xUnit，300 用例）
+└── FloatingNovelReader.Tests/            # 单元测试（xUnit，351 用例）
     ├── Core/KeyGestureLiteTests.cs
+    ├── Fixtures/EbookFixtures.cs         # 现场生成 EPUB / PDF 样本（不往仓库塞二进制）
     ├── Helpers/ChineseNumberTests.cs
     ├── Helpers/TextEncoderDetectorTests.cs
+    ├── Helpers/HtmlTextConverterTests.cs
+    ├── Helpers/EpubTextExtractorTests.cs
+    ├── Helpers/PdfTextExtractorTests.cs
+    ├── Helpers/ExtractedTextCacheTests.cs
+    ├── Helpers/DialogSizingTests.cs / DpiHelperTests.cs
     └── Services/
         ├── BookImportServiceTests.cs
         ├── BookshelfServiceTests.cs
@@ -339,9 +367,9 @@ dotnet test
 ```
 publish/
 ├── win-x64-singlefile/
-│   └── floating-novel-reader-singlefile-win-x64.exe   # 单文件版（约 4 MB）
+│   └── floating-novel-reader-singlefile-win-x64.exe   # 单文件版（约 10 MB）
 ├── win-x64-portable/                                  # 便携版目录（含 portable.mode）
-└── floating-novel-reader-portable-win-x64.zip         # 便携版压缩包（约 2 MB）
+└── floating-novel-reader-portable-win-x64.zip         # 便携版压缩包（约 4 MB）
 ```
 
 ---
@@ -352,6 +380,8 @@ publish/
 |------|------|
 | 库数据 | `%LocalAppData%\FloatingNovelReader\library.db` |
 | 设置 | `%LocalAppData%\FloatingNovelReader\settings.json` |
+| EPUB/PDF 正文缓存 | `%LocalAppData%\FloatingNovelReader\ImportCache\<sha256>.txt` |
+| 朗读音频缓存 | `%LocalAppData%\FloatingNovelReader\TtsCache\` |
 | 日志 | `%LocalAppData%\FloatingNovelReader\Logs\app-YYYY-MM-DD.log` |
 | 安装目录 | `%LocalAppData%\Programs\FloatingNovelReader\` |
 
@@ -377,8 +407,8 @@ dotnet test
 | `KeyGestureLite` | 单键/组合键解析往返（19 条） |
 | `ChapterParser` | 卷章解析全场景（23 条） |
 | `PaginationService` | 分页正确性 + 性能 < 200ms + 字符级完整性（6 条） |
-| `BookImportService` | TXT 导入端到端 + 重复导入检测（3 条） |
-| `BookshelfService` | 级联删除 CASCADE + 源文件删除（5 条） |
+| `BookImportService` | TXT / EPUB / PDF 导入端到端、格式识别（魔数兜底）、扫描版 PDF 报错（9 条） |
+| `BookshelfService` | 级联删除 CASCADE + 源文件删除 + 正文缓存清理（6 条） |
 | `TextEncoderDetector` | BOM / UTF-16 / GBK 编码检测（6 条） |
 | `ChineseNumber` | 中文数字→阿拉伯数字（12 条） |
 | `ChapterContentRoundTrip` | 章节字节偏移往返（UTF-8/UTF-16/GBK/CRLF，7 条） |
@@ -396,14 +426,17 @@ dotnet test
 | `HotkeyConfig` | 快捷键按名字存取 + 新增动作回填 + 中文名守卫（7 条） |
 | `JsonHelper` / `SettingsService` | 设置读写：缺字段、损坏文件、原子写、导入白名单（9 条） |
 | `ChapterContentReader` | 章节字节偏移读取的边界（5 条） |
-| `TextEncoderDetector` + `ChapterContentRoundTrip` | 编码检测与往返（11 条） |
-| `BookImportService` / `BookshelfService` | 导入、级联删除、封面颜色持久化（8 条） |
+| `HtmlTextConverter` | XHTML → 纯文本：实体解码 / 段落切分 / 标题下标 / 残缺标签（9 条） |
+| `EpubTextExtractor` | EPUB 解析：元数据 / spine 顺序 / nav+ncx 标题 / 单文件多章切分 / href 解析（13 条） |
+| `PdfTextExtractor` | PDF 解析：标题分章 / 无标题按页分块 / 换行重排 / 扫描版报错（8 条） |
+| `ExtractedTextCache` | 正文缓存落盘：字节偏移往返、缓存路径稳定性、越界删除防护（7 条） |
+| `DialogSizing` / `DpiHelper` | 高分屏对话框：尺寸夹取 / 跨屏居中 / 位置回夹 / STA 下的 WPF 写回（8 条） |
 | `ReadingSessionService` | 阅读进度防抖与刷盘（5 条） |
 | `Bootstrapper` / `WindowNavigator` | DI 注册完整性、`IPageAdvancer` 单例一致性（4 条） |
 | `BindingPathGuard` | XAML 每个绑定路径都能在对应 VM 上解析（含 `TtsSettingsTab`，6 条） |
 | `BuildScriptEncoding` | `build.ps1` 保留 UTF-8 BOM + 产物名与 README 一致（4 条） |
 
-共 **300 条**，全部通过。
+共 **351 条**，全部通过。
 
 </details>
 

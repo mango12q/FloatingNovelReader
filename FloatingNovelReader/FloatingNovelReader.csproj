@@ -47,6 +47,9 @@
     <PackageReference Include="MouseKeyHook" Version="5.7.1" />
     <PackageReference Include="NAudio" Version="2.2.0" />
 
+    <!-- PDF 文字层抽取（EPUB 用内置的 System.IO.Compression + XDocument，不引第三方库） -->
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+
     <!-- 结构化日志 -->
     <PackageReference Include="Serilog" Version="4.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />

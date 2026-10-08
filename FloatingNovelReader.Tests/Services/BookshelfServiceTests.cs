@@ -20,14 +20,18 @@ public class BookshelfServiceTests : IDisposable
     private readonly BookshelfService _bookshelf;
     private readonly BookImportService _importer;
     private readonly string _tmpFile;
+    private readonly string _cacheDir;
 
     public BookshelfServiceTests()
     {
         _dbFile = Path.Combine(Path.GetTempPath(), $"fnr_bshelf_{Guid.NewGuid():N}.db");
         _db = new DatabaseService(_dbFile);
         _db.Initialize();
-        _bookshelf = new BookshelfService(_db);
-        _importer = new BookImportService(_db, new ChapterParser());
+        // 缓存目录指向临时目录：测试绝不能往用户的 %LocalAppData% 里写东西
+        _cacheDir = Path.Combine(Path.GetTempPath(), $"fnr_cache_{Guid.NewGuid():N}");
+        var importOptions = new FloatingNovelReader.Core.ImportOptions { CacheDirectory = _cacheDir };
+        _bookshelf = new BookshelfService(_db, importOptions);
+        _importer = new BookImportService(_db, new ChapterParser(), importOptions);
 
         _tmpFile = Path.Combine(Path.GetTempPath(), $"demo_{Guid.NewGuid():N}.txt");
         File.WriteAllText(_tmpFile,
@@ -128,5 +132,6 @@ public class BookshelfServiceTests : IDisposable
             try { if (File.Exists(_dbFile + suffix)) File.Delete(_dbFile + suffix); } catch { }
         }
         try { if (File.Exists(_tmpFile)) File.Delete(_tmpFile); } catch { }
+        try { if (Directory.Exists(_cacheDir)) Directory.Delete(_cacheDir, recursive: true); } catch { }
     }
 }

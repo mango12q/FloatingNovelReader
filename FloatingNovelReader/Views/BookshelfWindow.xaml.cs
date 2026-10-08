@@ -64,10 +64,10 @@ public partial class BookshelfWindow : Window
         DragOverBorder.Visibility = Visibility.Collapsed;
         if (!e.Data.GetDataPresent(System.Windows.Forms.DataFormats.FileDrop)) return;
         var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-        var txtFiles = files.Where(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)).ToArray();
-        if (txtFiles.Length == 0) return;
+        var books = files.Where(BookFormatDetector.HasSupportedExtension).ToArray();
+        if (books.Length == 0) return;
 
-        foreach (var path in txtFiles)
+        foreach (var path in books)
         {
             try
             {

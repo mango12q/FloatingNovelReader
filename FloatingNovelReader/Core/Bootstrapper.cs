@@ -43,6 +43,7 @@ public static class Bootstrapper
         services.AddSingleton<BookshelfService>();
 
         // ── 业务服务 ─────────────────────────────────────
+        services.AddSingleton<ImportOptions>();
         services.AddSingleton<BookImportService>();
         services.AddSingleton<PaginationService>();
         services.AddSingleton<AutoReadService>();

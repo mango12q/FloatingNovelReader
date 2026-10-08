@@ -14,6 +14,16 @@ public static class ChapterContentReader
 {
     static ChapterContentReader() => EncodingSupport.EnsureRegistered();
 
+    /// <summary>
+    /// 按书籍读取章节正文。TXT 读源文件；EPUB/PDF 读导入时生成的 UTF-8 正文缓存
+    /// （<see cref="Book.ResolveContentPath"/> 负责选路），两者偏移语义完全一致。
+    /// </summary>
+    public static string Read(Book book, Chapter chapter)
+    {
+        if (book == null || chapter == null) return string.Empty;
+        return Read(book.ResolveContentPath(), chapter, book.Encoding);
+    }
+
     public static string Read(string filePath, Chapter chapter, string? encodingName)
     {
         var start = chapter.StartPosition;
