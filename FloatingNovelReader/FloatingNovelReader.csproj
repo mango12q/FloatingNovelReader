@@ -14,10 +14,10 @@
     <Copyright>Copyright (c) 2026</Copyright>
     <RepositoryUrl>https://github.com/$(AssemblyName)/$(AssemblyName)</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <InformationalVersion>1.0.0</InformationalVersion>
+    <Version>0.11.0</Version>
+    <FileVersion>0.11.0.0</FileVersion>
+    <AssemblyVersion>0.11.0.0</AssemblyVersion>
+    <InformationalVersion>0.11.0</InformationalVersion>
     <NeutralLanguage>zh-CN</NeutralLanguage>
     <ApplicationIcon>Resources\Icons\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>

@@ -40,7 +40,7 @@ public partial class ChapterListWindow : Window
     }
 
     private void ApplyDpiLayout(bool recenter) =>
-        DpiHelper.ApplyDialogLayout(
+        DpiHelper.ApplyAdaptiveLayout(
             this, Owner, PreferredWidth, PreferredHeight, MinWidthDip, MinHeightDip, recenter);
 
     private void OnChapterClick(object sender, MouseButtonEventArgs e)

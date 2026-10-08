@@ -51,16 +51,17 @@ public static class DpiHelper
     }
 
     /// <summary>
-    /// 按目标显示器的 DPI 与工作区调整对话框尺寸与位置。
+    /// 按目标显示器的 DPI 与工作区调整窗口尺寸与位置。
+    /// 适用于对话框（owner 居中）与主窗口（owner 为空时在工作区居中）。
     /// </summary>
-    /// <param name="dialog">待调整的对话框（可在 Show 之前调用，SourceInitialized 时机最佳）</param>
+    /// <param name="dialog">待调整的窗口（可在 Show 之前调用，SourceInitialized 时机最佳）</param>
     /// <param name="owner">所属窗口，用于居中；为空则在工作区居中</param>
     /// <param name="preferredWidth">首选宽（DIP）</param>
     /// <param name="preferredHeight">首选高（DIP）</param>
     /// <param name="minWidth">最小宽（DIP）</param>
     /// <param name="minHeight">最小高（DIP）</param>
     /// <param name="recenter">true = 重新在 owner 上居中；false = 保持当前中心（DPI 变化时用）</param>
-    public static DialogSizing.Result ApplyDialogLayout(
+    public static DialogSizing.Result ApplyAdaptiveLayout(
         Window dialog,
         Window? owner,
         double preferredWidth,

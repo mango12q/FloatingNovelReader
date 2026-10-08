@@ -46,17 +46,18 @@
 ### 📚 内容 & 导航
 - **TXT 导入**：自动检测编码（GBK / UTF-8 / UTF-16 / Big5 …）
 - **EPUB 导入**：按 spine 顺序解析，章节标题取正文标题（h1~h6）或 EPUB 目录（nav / ncx）条目名；「整本书塞进一个 XHTML」也能按标题切开
-- **PDF 导入**：抽取文字层并按「第 N 章 / Chapter N / 卷一」等标题行分章；没有标题行时按页分块（第 1-5 页 …），排版换行自动接回段落
+- **PDF 导入**：抽取文字层并按「第 N 章 / Chapter N / 卷一」等标题行分章；没有标题行时按页分块（≤200 页时**一页一节**，目录本身就能当选页表用），排版换行自动接回段落
 - **自动分章**：识别「第 N 章 / 第一卷 / Chapter 1 / 1、」等多种写法
 - **章节目录**：按 `F9` 打开，按卷/章树形展示
+- **跳转到页码**：≡ 菜单 →「跳转到页码…」，填本章页码直接跳（分章粒度粗的 PDF 尤其省事）
 - **书签**：按 `F10` 或 ≡ 菜单「添加书签」添加 / `F12` 打开书签列表 / 列表点击跳转
 - **进度记忆**：阅读位置自动保存，下次打开自动恢复
-- **高分屏适配**：书签 / 目录窗口按所在显示器的 DPI 与工作区自适应尺寸与位置，跨不同缩放的显示器也不会跑到屏幕外
+- **高分屏适配**：书架 / 阅读 / 目录 / 书签 / 设置 / 跳转页码窗口都按所在显示器的 DPI 与工作区自适应尺寸与位置，跨不同缩放的显示器也不会跑到屏幕外
 
 > **电子书格式的边界**（导入前先看一眼，能省一次失败）：
 > - **扫描版 PDF 不支持**：只抽文字层，不做 OCR。整本都是图片的 PDF 会明确提示「没有可提取的文字」，请先用 OCR 工具转成带文字层的 PDF 或 TXT。
 > - **受 DRM 保护的 EPUB / 带打开密码的 PDF 不支持**：会提示文件打不开/已加密。
-> - **PDF 的分章依赖标题行**：识别不到「第 N 章 / Chapter N / 卷一」这类标题时按页分块（每 5 页一节），目录里显示「第 1-5 页」；多栏排版、公式表格的阅读顺序可能不完美。
+> - **PDF 的分章依赖标题行**：识别不到「第 N 章 / Chapter N / 卷一」这类标题时按页分块——200 页以内一页一节（目录里是「第 7 页」），超过 200 页则合并到 200 节以内；多栏排版、公式表格的阅读顺序可能不完美。
 > - **EPUB 的章节标题**取自正文标题或书内目录，二者都没有时按顺序编号。
 
 ### 🔊 朗读（TTS）
@@ -222,7 +223,7 @@
 | EPUB 解析 | System.IO.Compression + XDocument（内置） | 不引第三方库：container.xml → OPF → spine，XHTML 用容错正则转纯文本 |
 | PDF 解析 | PdfPig 0.1.16（Apache-2.0） | 只抽文字层（不做 OCR），按标题行分章、排版换行重排 |
 | 日志 | Serilog 4.0.0 | 按日滚动，保留 30 天，`%LocalAppData%\FloatingNovelReader\Logs\` |
-| 单元测试 | xUnit 2.9.2 | 351 个测试用例 |
+| 单元测试 | xUnit 2.9.2 | 373 个测试用例 |
 
 ---
 
@@ -284,7 +285,8 @@
 │   │   ├── BookshelfWindow.xaml(.cs)     # 书架窗口
 │   │   ├── SettingsWindow.xaml(.cs)      # 设置窗口
 │   │   ├── ChapterListWindow.xaml(.cs)   # 章节目录弹窗
-│   │   └── BookmarkWindow.xaml(.cs)      # 书签列表弹窗
+│   │   ├── BookmarkWindow.xaml(.cs)      # 书签列表弹窗
+│   │   └── PageJumpWindow.xaml(.cs)      # 跳转到页码弹窗
 │   │
 │   ├── Controls/                         # 自定义 WPF 控件
 │   │   ├── HotkeyTextBox.cs              # 快捷键录入控件（录制态 + 防误触）
@@ -299,8 +301,9 @@
 │   │   ├── ChapterContentReader.cs       # 按偏移回读章节（TXT 源文件或正文缓存）
 │   │   ├── TextEncoderDetector.cs        # 编码自动检测（BOM + Ude 启发式）
 │   │   ├── Win32Helper.cs                # Win32 API P/Invoke（置顶/穿透/显示器工作区/DPI）
-│   │   ├── DpiHelper.cs                  # 对话框高分屏适配（尺寸/位置/DpiChanged）
-│   │   ├── DialogSizing.cs               # 对话框尺寸位置的纯函数计算（可单测）
+│   │   ├── DpiHelper.cs                  # 窗口高分屏适配（尺寸/位置/DpiChanged）
+│   │   ├── DialogSizing.cs               # 窗口尺寸位置的纯函数计算（可单测）
+│   │   ├── PageJumpInput.cs              # 「跳转到页码」输入校验（纯函数）
 │   │   ├── FontHelper.cs                 # 系统字体枚举
 │   │   └── JsonHelper.cs                 # JSON 序列化（settings.json）
 │   │
@@ -313,7 +316,7 @@
 │       ├── Icons/app.ico                 # 应用图标
 │       └── Styles.xaml                   # 全局样式
 │
-└── FloatingNovelReader.Tests/            # 单元测试（xUnit，351 用例）
+└── FloatingNovelReader.Tests/            # 单元测试（xUnit，373 用例）
     ├── Core/KeyGestureLiteTests.cs
     ├── Fixtures/EbookFixtures.cs         # 现场生成 EPUB / PDF 样本（不往仓库塞二进制）
     ├── Helpers/ChineseNumberTests.cs
@@ -428,21 +431,24 @@ dotnet test
 | `ChapterContentReader` | 章节字节偏移读取的边界（5 条） |
 | `HtmlTextConverter` | XHTML → 纯文本：实体解码 / 段落切分 / 标题下标 / 残缺标签（9 条） |
 | `EpubTextExtractor` | EPUB 解析：元数据 / spine 顺序 / nav+ncx 标题 / 单文件多章切分 / href 解析（13 条） |
-| `PdfTextExtractor` | PDF 解析：标题分章 / 无标题按页分块 / 换行重排 / 扫描版报错（8 条） |
+| `PdfTextExtractor` | PDF 解析：标题分章 / 无标题按页分块（含 200 节上限）/ 换行重排 / 扫描版报错（15 条） |
 | `ExtractedTextCache` | 正文缓存落盘：字节偏移往返、缓存路径稳定性、越界删除防护（7 条） |
-| `DialogSizing` / `DpiHelper` | 高分屏对话框：尺寸夹取 / 跨屏居中 / 位置回夹 / STA 下的 WPF 写回（8 条） |
+| `DialogSizing` / `DpiHelper` | 高分屏窗口：尺寸夹取 / 跨屏居中 / 位置回夹 / 无 owner 主窗口 / STA 下的 WPF 写回（9 条） |
+| `PageJumpInput` | 跳转页码输入校验：范围 / 非数字 / 空章节（14 条） |
 | `ReadingSessionService` | 阅读进度防抖与刷盘（5 条） |
 | `Bootstrapper` / `WindowNavigator` | DI 注册完整性、`IPageAdvancer` 单例一致性（4 条） |
 | `BindingPathGuard` | XAML 每个绑定路径都能在对应 VM 上解析（含 `TtsSettingsTab`，6 条） |
 | `BuildScriptEncoding` | `build.ps1` 保留 UTF-8 BOM + 产物名与 README 一致（4 条） |
 
-共 **351 条**，全部通过。
+共 **373 条**，全部通过。
 
 </details>
 
 ---
 
 ## 📜 版本历史
+
+当前版本 **v0.11**：TXT / EPUB / PDF 三种来源导入（电子书解析成正文缓存，复用同一套章节偏移阅读链路）+ 跳转到页码 + 书架/阅读/目录/书签/设置窗口的高分屏 DPI 适配。
 
 完整更新记录见 [Releases](../../releases)。
 

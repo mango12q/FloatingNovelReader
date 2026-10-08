@@ -1,0 +1,41 @@
+<Window x:Class="FloatingNovelReader.Views.PageJumpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="跳转到页码"
+        Width="340" Height="190"
+        MinWidth="300" MinHeight="170"
+        WindowStartupLocation="Manual"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="White"
+        FontSize="{x:Static SystemFonts.MessageFontSize}"
+        AutomationProperties.Name="跳转到页码"
+        AutomationProperties.HelpText="输入本章页码后跳转">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="HintText" Text="本章共 0 页" TextWrapping="Wrap"/>
+
+        <TextBox x:Name="PageBox" Grid.Row="1" Margin="0,8,0,0" Padding="6,4"
+                 AutomationProperties.Name="页码输入框"
+                 AutomationProperties.HelpText="输入 1 到本章总页数之间的数字，回车确认"/>
+
+        <TextBlock x:Name="ErrorText" Grid.Row="2" Margin="0,6,0,0"
+                   Foreground="#D93025" TextWrapping="Wrap" Visibility="Collapsed"
+                   AutomationProperties.Name="输入错误提示"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="跳转" Width="80" Margin="0,0,8,0" IsDefault="True" Click="OnOkClick"
+                    AutomationProperties.Name="跳转按钮"
+                    AutomationProperties.HelpText="跳转到输入的页码"/>
+            <Button Content="取消" Width="80" IsCancel="True"
+                    AutomationProperties.Name="取消按钮"
+                    AutomationProperties.HelpText="关闭窗口，不跳转"/>
+        </StackPanel>
+    </Grid>
+</Window>

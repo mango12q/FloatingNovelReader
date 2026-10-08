@@ -42,4 +42,10 @@ public interface IWindowNavigator
 
     /// <summary>创建书签列表对话框（同上）。</summary>
     Window CreateBookmarkListDialog(Book book, Window? owner);
+
+    /// <summary>
+    /// 弹出「跳转到页码」输入框。返回用户确认的页码（1 起，本章内）；
+    /// 取消或出错时返回 null（调用方保持原页不动）。
+    /// </summary>
+    int? AskPageNumber(Window? owner, int currentPage, int totalPages);
 }

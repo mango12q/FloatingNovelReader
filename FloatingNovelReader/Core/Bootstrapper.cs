@@ -80,6 +80,7 @@ public static class Bootstrapper
         services.AddTransient<SettingsWindow>();
         services.AddTransient<ChapterListWindow>();
         services.AddTransient<BookmarkWindow>();
+        services.AddTransient<PageJumpWindow>();
 
         Log.Information("DI 容器注册完成，共 {Count} 项", services.Count);
         return services;

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FloatingNovelReader.Core;
+using FloatingNovelReader.Helpers;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
 using FloatingNovelReader.ViewModels;
@@ -14,6 +15,13 @@ namespace FloatingNovelReader.Views;
 
 public partial class BookshelfWindow : Window
 {
+    // 首选/最小尺寸（DIP）。书架是主窗口（没有 Owner），
+    // DpiHelper 会在工作区内居中并把尺寸夹进工作区，跨 DPI 显示器时重新夹取。
+    private const double PreferredWidth = 900;
+    private const double PreferredHeight = 600;
+    private const double MinWidthDip = 640;
+    private const double MinHeightDip = 480;
+
     private readonly BookshelfViewModel _vm;
     private readonly IWindowNavigator _navigator;
 
@@ -24,7 +32,14 @@ public partial class BookshelfWindow : Window
         _navigator = navigator;
         Loaded += OnFirstLoaded;
         Closed += (s, e) => { /* 不退出进程 */ };
+
+        SourceInitialized += (s, e) => ApplyDpiLayout(recenter: true);
+        DpiChanged += (s, e) => ApplyDpiLayout(recenter: false);
     }
+
+    private void ApplyDpiLayout(bool recenter) =>
+        DpiHelper.ApplyAdaptiveLayout(
+            this, Owner, PreferredWidth, PreferredHeight, MinWidthDip, MinHeightDip, recenter);
 
     private bool _firstLoad;
     private void OnFirstLoaded(object? sender, RoutedEventArgs e)

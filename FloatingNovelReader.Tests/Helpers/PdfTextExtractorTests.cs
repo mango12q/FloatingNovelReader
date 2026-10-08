@@ -61,7 +61,7 @@ public class PdfTextExtractorTests : IDisposable
     }
 
     [Fact]
-    public void Extract_WithoutHeadings_FallsBackToPageBlocks()
+    public void Extract_WithoutHeadings_FallsBackToPageSections()
     {
         var pages = new List<IReadOnlyList<string>>();
         for (int i = 1; i <= 6; i++)
@@ -71,11 +71,31 @@ public class PdfTextExtractorTests : IDisposable
 
         var content = PdfTextExtractor.Extract(path);
 
-        Assert.Equal(2, content.Sections.Count);
-        Assert.Equal("第 1-5 页", content.Sections[0].Title);
-        Assert.Equal("第 6 页", content.Sections[1].Title);
-        Assert.Contains("Page 5", content.Sections[0].Text);
-        Assert.Contains("Page 6", content.Sections[1].Text);
+        // 页数少时一页一节：目录本身就是「选页表」
+        Assert.Equal(6, content.Sections.Count);
+        Assert.Equal("第 1 页", content.Sections[0].Title);
+        Assert.Equal("第 6 页", content.Sections[5].Title);
+        Assert.Contains("Page 6", content.Sections[5].Text);
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(32, 1)]
+    [InlineData(200, 1)]
+    [InlineData(201, 2)]
+    [InlineData(1000, 5)]
+    [InlineData(2000, 10)]
+    [InlineData(0, 1)]
+    public void PagesPerSection_KeepsSectionCountWithinTheCap(int pageCount, int expected)
+    {
+        Assert.Equal(expected, PdfTextExtractor.PagesPerSection(pageCount));
+
+        if (pageCount > 0)
+        {
+            int sections = (int)Math.Ceiling(pageCount / (double)PdfTextExtractor.PagesPerSection(pageCount));
+            Assert.True(sections <= PdfTextExtractor.MaxFallbackSections,
+                $"{pageCount} 页会生成 {sections} 个目录条目，超过上限");
+        }
     }
 
     [Fact]

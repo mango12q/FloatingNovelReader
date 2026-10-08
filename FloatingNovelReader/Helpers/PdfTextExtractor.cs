@@ -16,13 +16,17 @@ namespace FloatingNovelReader.Helpers;
 ///
 /// 章节切分策略（依次降级）：
 ///   1. 在每页文字里按「第 N 章 / Chapter N / 卷一」等标题行切（复用 ChapterParser.LooksLikeHeader）
-///   2. 全篇都没有标题行时，按固定页数分块（第 1-5 页 / 第 6-10 页 …）
+///   2. 全篇都没有标题行时按页分块：≤200 页时一页一节（目录即可当「选页表」用），
+///      页数更多时合并到 200 节以内（见 PagesPerSection）
 /// 抽不到文字（扫描版图片 PDF）直接报错，提示用户换有文字层的版本。
 /// </summary>
 public static class PdfTextExtractor
 {
-    /// <summary>没有标题行时每个章节段的页数。</summary>
-    internal const int PagesPerSectionFallback = 5;
+    /// <summary>
+    /// 没有标题行时，目录条目数的上限。超过就合并若干页为一节，
+    /// 否则一本 2000 页的 PDF 会在目录窗口里塞 2000 个条目（且 ItemsControl 不做虚拟化）。
+    /// </summary>
+    internal const int MaxFallbackSections = 200;
 
     /// <summary>整篇文字少于这个长度就认为「没有文字层」。</summary>
     internal const int MinUsefulTextLength = 20;
@@ -149,17 +153,29 @@ public static class PdfTextExtractor
 
         if (sawHeader) return;
 
-        // 全篇没有标题行：按固定页数分块，至少让目录可用
+        // 全篇没有标题行：按页分块。块大小自适应——页数少时一页一节（目录里能直接选页），
+        // 页数多时合并，避免目录里出现几千个条目。
         content.Sections.Clear();
-        for (int start = 0; start < pages.Count; start += PagesPerSectionFallback)
+        int perSection = PagesPerSection(pages.Count);
+        for (int start = 0; start < pages.Count; start += perSection)
         {
-            int end = Math.Min(start + PagesPerSectionFallback, pages.Count);
+            int end = Math.Min(start + perSection, pages.Count);
             var body = Reflow(string.Join("\n", pages.Skip(start).Take(end - start))).Trim();
             if (body.Length == 0) continue;
 
             var title = end - start == 1 ? $"第 {start + 1} 页" : $"第 {start + 1}-{end} 页";
             content.Sections.Add(new ExtractedSection(title, body));
         }
+    }
+
+    /// <summary>
+    /// 无标题 PDF 的每节页数：目标是不超过 <see cref="MaxFallbackSections"/> 个目录条目，
+    /// 且至少一页一节（页数少时目录即「选页表」）。
+    /// </summary>
+    internal static int PagesPerSection(int pageCount)
+    {
+        if (pageCount <= 0) return 1;
+        return Math.Max(1, (int)Math.Ceiling(pageCount / (double)MaxFallbackSections));
     }
 
     /// <summary>取一页的文字（优先保持阅读顺序，失败退回 page.Text）。</summary>

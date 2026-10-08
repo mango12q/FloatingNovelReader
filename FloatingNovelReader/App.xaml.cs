@@ -192,7 +192,7 @@ public partial class App : Application
     public static string GetVersion()
     {
         var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        return v?.ToString() ?? "1.0.0";
+        return v?.ToString() ?? Constants.AppVersion;
     }
 
     /// <summary>

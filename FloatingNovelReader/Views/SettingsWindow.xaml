@@ -6,7 +6,8 @@
         xmlns:views="clr-namespace:FloatingNovelReader.Views"
         Title="设置"
         Width="600" Height="580"
-        WindowStartupLocation="CenterOwner"
+        MinWidth="480" MinHeight="420"
+        WindowStartupLocation="Manual"
         Background="White"
         AutomationProperties.Name="设置窗口"
         AutomationProperties.HelpText="配置阅读器显示、自动阅读、启动行为和快捷键">

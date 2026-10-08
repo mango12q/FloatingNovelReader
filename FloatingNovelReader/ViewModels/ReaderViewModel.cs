@@ -345,6 +345,38 @@ public sealed partial class ReaderViewModel : ObservableObject, IPageAdvancer, I
         Log.Information("添加书签: {Chapter} 第{Page}页", b.ChapterId, b.PageNumber);
     }
 
+    /// <summary>
+    /// 跳转到本章的指定页（1 起）。弹输入框，取消则不动。
+    /// 分章粒度粗的书（例如无标题 PDF 按页分块）用它比翻目录快。
+    /// </summary>
+    [RelayCommand]
+    public void JumpToPage()
+    {
+        if (CurrentBook == null || CurrentChapter == null) return;
+
+        var total = Pager.TotalPages;
+        if (total <= 0)
+        {
+            StatusText = "本章还没有分页，无法跳转";
+            return;
+        }
+
+        var target = _navigator.AskPageNumber(_navigator.ActiveReaderWindow, Pager.CurrentPage + 1, total);
+        if (target == null) return;
+
+        JumpToPageNumber(target.Value);
+    }
+
+    /// <summary>跳到本章第 <paramref name="pageNumber"/> 页（1 起，越界自动夹取）。</summary>
+    public void JumpToPageNumber(int pageNumber)
+    {
+        if (Pager.TotalPages <= 0) return;
+
+        Pager.SetPage(pageNumber - 1, _currentChapterText);
+        Log.Information("跳转页码: {Chapter} 第{Page}/{Total}页",
+            CurrentChapter?.Title, Pager.CurrentPage + 1, Pager.TotalPages);
+    }
+
     [RelayCommand]
     public void ToggleAutoRead()
     {

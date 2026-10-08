@@ -7,6 +7,7 @@ using System.Windows.Forms; // for ColorDialog
 using System.Windows.Input;
 using System.Windows.Media;
 using FloatingNovelReader;
+using FloatingNovelReader.Helpers;
 using FloatingNovelReader.ViewModels;
 using FloatingNovelReader.Models;
 using FloatingNovelReader.Services;
@@ -16,6 +17,12 @@ namespace FloatingNovelReader.Views;
 
 public partial class SettingsWindow : Window
 {
+    // 首选/最小尺寸（DIP）。高分屏上由 DpiHelper 按所在显示器工作区收窄。
+    private const double PreferredWidth = 600;
+    private const double PreferredHeight = 580;
+    private const double MinWidthDip = 480;
+    private const double MinHeightDip = 420;
+
     private readonly SettingsViewModel _vm;
     private readonly SettingsService _settingsService;
     private readonly TtsPanelViewModel _ttsPanel;
@@ -33,7 +40,15 @@ public partial class SettingsWindow : Window
         TtsTab.DataContext = _ttsPanel;
         Loaded += OnLoadedInternal;
         Closing += OnClosingInternal;
+
+        // 高分屏适配：句柄建好时按目标显示器 DPI/工作区定尺寸与位置，DPI 变化时重新夹取
+        SourceInitialized += (s, e) => ApplyDpiLayout(recenter: true);
+        DpiChanged += (s, e) => ApplyDpiLayout(recenter: false);
     }
+
+    private void ApplyDpiLayout(bool recenter) =>
+        DpiHelper.ApplyAdaptiveLayout(
+            this, Owner, PreferredWidth, PreferredHeight, MinWidthDip, MinHeightDip, recenter);
 
     private void OnLoadedInternal(object sender, RoutedEventArgs e)
     {

@@ -100,4 +100,20 @@ public sealed class WindowNavigator : IWindowNavigator
         if (owner != null) w.Owner = owner;
         return w;
     }
+
+    public int? AskPageNumber(Window? owner, int currentPage, int totalPages)
+    {
+        try
+        {
+            var w = _services.GetRequiredService<PageJumpWindow>();
+            if (owner != null && !ReferenceEquals(owner, w)) w.Owner = owner;
+            w.Configure(currentPage, totalPages);
+            return w.ShowDialog() == true ? w.SelectedPage : null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "显示跳转页码窗口失败");
+            return null;
+        }
+    }
 }

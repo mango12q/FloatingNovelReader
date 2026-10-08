@@ -43,7 +43,7 @@ public partial class BookmarkWindow : Window
     }
 
     private void ApplyDpiLayout(bool recenter) =>
-        DpiHelper.ApplyDialogLayout(
+        DpiHelper.ApplyAdaptiveLayout(
             this, Owner, PreferredWidth, PreferredHeight, MinWidthDip, MinHeightDip, recenter);
 
     private void OnBookmarkClick(object sender, MouseButtonEventArgs e)

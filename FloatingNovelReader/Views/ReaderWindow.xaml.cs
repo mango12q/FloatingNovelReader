@@ -227,6 +227,9 @@ public partial class ReaderWindow : Window
     private void OnMenuChapterListClick(object sender, RoutedEventArgs e)
         => _vm.ShowChapterListCommand.Execute(null);
 
+    private void OnMenuJumpToPageClick(object sender, RoutedEventArgs e)
+        => _vm.JumpToPageCommand.Execute(null);
+
     private void OnMenuAddBookmarkClick(object sender, RoutedEventArgs e)
         => _vm.AddBookmarkCommand.Execute(null);
 

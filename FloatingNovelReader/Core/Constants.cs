@@ -7,7 +7,8 @@ public static class Constants
 {
     // 应用元数据
     public const string AppName = "浮窗小说阅读器";
-    public const string AppVersion = "1.0.0";
+    /// <summary>与 csproj 的 Version / Git 标签（v0.11）保持一致。</summary>
+    public const string AppVersion = "0.11.0";
     public const string MutexName = "FloatingNovelReader.SingleInstance";
 
     // 路径

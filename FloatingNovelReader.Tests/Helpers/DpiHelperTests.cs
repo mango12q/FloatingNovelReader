@@ -40,7 +40,7 @@ public class DpiHelperTests
 
                 var dialog = new Window { Owner = owner };
 
-                var result = DpiHelper.ApplyDialogLayout(dialog, owner, 500, 700, 400, 500);
+                var result = DpiHelper.ApplyAdaptiveLayout(dialog, owner, 500, 700, 400, 500);
 
                 Assert.Equal(WindowStartupLocation.Manual, dialog.WindowStartupLocation);
                 Assert.Equal(result.Width, dialog.Width);
@@ -64,6 +64,48 @@ public class DpiHelperTests
 
                 dialog.Close();
                 owner.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
+                done.Set();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+
+        Assert.True(done.Wait(TimeSpan.FromSeconds(30)), "STA 线程未在 30 秒内完成");
+        if (failure != null) throw new XunitException("STA 线程内断言失败：" + failure);
+    }
+
+    [Fact]
+    public void ApplyAdaptiveLayout_WithoutOwner_CentersInWorkArea()
+    {
+        // 书架是主窗口（没有 Owner）：不居中到别的窗口，而是在工作区内居中
+        Exception? failure = null;
+        using var done = new ManualResetEventSlim();
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new Window { ShowInTaskbar = false, ShowActivated = false, WindowStyle = WindowStyle.None };
+                window.Show();
+
+                var result = DpiHelper.ApplyAdaptiveLayout(window, owner: null, 900, 600, 640, 480);
+
+                var work = SystemParameters.WorkArea;
+                Assert.True(result.Width <= Math.Max(900, work.Width));
+                Assert.True(result.Height <= Math.Max(600, work.Height));
+                Assert.True(window.Left >= work.Left - 1 && window.Top >= work.Top - 1);
+                Assert.True(window.Left + window.Width <= work.Right + 1);
+                Assert.True(window.Top + window.Height <= work.Bottom + 1);
+
+                window.Close();
             }
             catch (Exception ex)
             {
